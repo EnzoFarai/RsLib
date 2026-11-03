@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biology — DNA: The Code of Life</title>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --blue-start:#093c8f; /* deep blue */
+            --blue-end:#0c57b8;
+            --google-blue: #4285F4;
+            --content-font: "Atkinson Hyperlegible Next", Arial, sans-serif;
+            --base-size:16px;
+            --history-section-bg: #e8f5e9; /* Greenish background for history section */
+            --history-section-border: #4caf50; /* Green border */
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            background: #fff;
+            font-family: var(--content-font);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            color: #333;
+        }
+
+        /* Top status-like bar (mimic screenshot) */
+        .statusbar{
+            height: 42px;
+            background: #4285F4; /* Changed to solid blue as requested */
+            color: #fff;
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            box-sizing: border-box;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .statusbar .title-wrap{
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+        .statusbar .navrow{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+        .statusbar .navrow .back{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .statusbar h2{
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .statusbar p{
+            margin: 0;
+            font-size: 13px;
+            opacity: 0.95;
+            font-weight: 600;
+        }
+
+        /* White toolbar below header - Updated with glass effect */
+        .toolbar{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 42px;
+            z-index: 90;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .toolbar .left{ flex: 1; }
+        .icon-btn{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(0,0,0,0.06);
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+        .icon-btn:hover{
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .icon-row{ display: flex; gap: 8px; align-items: center; }
+
+        /* AA button with different sized A's in Times New Roman */
+        .aa-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            font-family: "Times New Roman", Times, serif;
+        }
+        .aa-button .small-a {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .aa-button .large-a {
+            font-size: 18px;
+        }
+
+        /* AA popup */
+        .fontsize-panel{
+            position: absolute;
+            right: 12px;
+            top: 110px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 30px rgba(12,20,40,0.15);
+            width: 280px;
+            display: none;
+            z-index: 95;
+            border: 1px solid rgba(255,255,255,0.3);
+            font-family: var(--content-font);
+        }
+        .fontsize-panel.show{ display: block; }
+        .fontsize-panel .row{ display: flex; align-items: center; gap: 8px; }
+        .fontsize-panel .big-A{ font-weight: 700; font-size: 18px; }
+        .fontsize-panel .small-A{ font-weight: 600; font-size: 14px; }
+        .fontsize-panel input[type=range]{ 
+            flex: 1; 
+            height: 6px; 
+            border-radius: 3px; 
+            background: #e0e0e0; 
+            outline: none;
+        }
+        .fontsize-panel input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--google-blue);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .fontsize-controls{ 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            margin: 15px 0 10px;
+        }
+        .btn-sm, .btn-lg{
+            border: 1px solid rgba(0,0,0,0.08);
+            background: #f7f7fb;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-family: var(--content-font);
+        }
+        .btn-sm:hover, .btn-lg:hover {
+            background: #e8e8f8;
+            transform: translateY(-1px);
+        }
+
+        /* Updated Search box design - smaller and positioned to right */
+        .search-box {
+            display: flex;
+            align-items: center;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 20px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.8);
+            margin-right: 8px;
+            width: 180px; /* Smaller width */
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .search-box:focus-within {
+            background: rgba(255,255,255,0.95);
+            border-color: var(--google-blue);
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+        }
+        .search-box input {
+            border: none;
+            outline: none;
+            font-size: 14px;
+            padding: 2px 8px;
+            width: 100%;
+            background: transparent;
+            font-family: var(--content-font);
+        }
+        .search-box .search-icons {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .search-box i {
+            font-size: 16px;
+            color: #555;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        .search-box i:hover {
+            color: var(--google-blue);
+        }
+        
+        /* FIXED: Proper YouTube-like search behavior */
+        .search-box .clear-btn {
+            display: none;
+        }
+        .search-box .search-icon {
+            display: flex;
+        }
+        .search-box .active-search-icon {
+            display: none;
+        }
+        
+        /* When search box has text, show clear button and active search icon */
+        .search-box.has-text .clear-btn {
+            display: flex;
+        }
+        .search-box.has-text .search-icon {
+            display: none;
+        }
+        .search-box.has-text .active-search-icon {
+            display: flex;
+        }
+        
+        /* When actively searching (after pressing enter/search), hide ALL icons */
+        .search-box.searching .clear-btn,
+        .search-box.searching .search-icon,
+        .search-box.searching .active-search-icon {
+            display: none !important;
+        }
+
+        /* Content area - This will be affected by font size changes */
+        main{
+            padding: 18px;
+            max-width: 920px;
+            margin: 12px auto 100px;
+            box-sizing: border-box;
+            line-height: 1.6;
+            font-size: var(--content-size, 16px);
+            font-family: var(--content-font);
+            /* Enable text selection for the content */
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+        article h1{
+            font-size: calc(var(--content-size, 16px) * 2.125); /* 34px when base is 16px */
+            margin: 18px 0 12px;
+            font-weight: 800;
+            color: #222;
+            font-family: var(--content-font);
+        }
+        article h2{
+            font-size: calc(var(--content-size, 16px) * 1.5);
+            margin: 24px 0 16px;
+            font-weight: 700;
+            color: #222;
+            font-family: var(--content-font);
+        }
+        article h3{
+            font-size: calc(var(--content-size, 16px) * 1.25);
+            margin: 20px 0 12px;
+            font-weight: 600;
+            color: #333;
+            font-family: var(--content-font);
+        }
+        article p{ color: #444; margin: 16px 0; font-size: 1em; font-family: var(--content-font); }
+        article strong{ color: #222; }
+        
+        /* Google Blue links */
+        article a {
+            color: var(--google-blue);
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.2s ease;
+        }
+        article a:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+        
+        /* Blockquote styling */
+        article blockquote {
+            background: #f8f9fa;
+            border-left: 4px solid var(--google-blue);
+            margin: 20px 0;
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: #555;
+        }
+        
+        /* Table styling */
+        article table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        article th {
+            background: var(--google-blue);
+            color: white;
+            font-weight: 600;
+            padding: 16px 12px;
+            text-align: left;
+        }
+        article td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        article tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        article tr:hover {
+            background: #f0f7ff;
+        }
+        
+        /* List styling */
+        article ol, article ul {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        article li {
+            margin: 8px 0;
+            color: #444;
+        }
+
+        /* Image styling */
+        .figure-container {
+            margin: 24px 0;
+            text-align: center;
+        }
+        
+        .figure-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+        
+        .figure-caption {
+            font-style: italic;
+            color: #666;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        /* Greenish history section styling */
+        .history-section {
+            background-color: var(--history-section-bg);
+            border-left: 4px solid var(--history-section-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+        }
+        
+        .history-section h2 {
+            color: #2e7d32;
+            border-bottom: 2px solid rgba(76, 175, 80, 0.2);
+            padding-bottom: 8px;
+            margin-top: 0;
+        }
+        
+        .history-section p {
+            color: #444;
+        }
+        
+        .history-section ul {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        
+        .history-section li {
+            margin: 8px 0;
+            color: #444;
+        }
+
+        /* Revision section styling (kept for reference, but not used in new content) */
+        .revision-section {
+            background-color: #f0f7ff;
+            border-left: 4px solid #4285F4;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.1);
+        }
+        
+        .revision-section h2 {
+            color: #4285F4;
+            border-bottom: 2px solid rgba(66, 133, 244, 0.2);
+            padding-bottom: 8px;
+            margin-top: 0;
+        }
+        
+        .revision-section p {
+            color: #444;
+        }
+        
+        .revision-section ul {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        
+        .revision-section li {
+            margin: 8px 0;
+            color: #444;
+        }
+
+        /* mobile mimic large heading style like screenshot */
+        @media(min-width:900px){
+            .statusbar{ height: 60px; padding: 12px 20px; }
+            .toolbar{ top: 60px; }
+        }
+
+        /* Highlighting for search */
+        mark.search-hit{
+            background: #ffe58a;
+            color: #222;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        
+        /* Updated No match found modal - blue background, white text, temporary */
+        .no-match-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--google-blue);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+            display: none;
+            font-weight: 600;
+            font-size: 16px;
+            font-family: var(--content-font);
+        }
+        .no-match-modal.show {
+            display: block;
+            animation: fadeInOut 3s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+
+        /* small helper at bottom */
+        .finder-footer{
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(0deg, rgba(0,0,0,0.05), transparent);
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            z-index: 50;
+        }
+
+        /* Custom highlight styles with new color palette */
+        .highlighted-yellow {
+            background-color: #ffc800 !important;
+        }
+
+        .highlighted-green {
+            background-color: #89e219 !important;
+        }
+
+        .highlighted-blue {
+            background-color: #1cb0f6 !important;
+        }
+
+        .highlighted-red {
+            background-color: #ff4b4b !important;
+        }
+
+        .highlighted-orange {
+            background-color: #ff9600 !important;
+        }
+
+        .highlighted-violet {
+            background-color: #ce82ff !important;
+        }
+
+        /* Selection styles */
+        main ::selection {
+            background-color: rgba(66, 133, 244, 0.3);
+        }
+
+        /* Custom Selection Toolbar */
+        .selection-toolbar {
+            position: fixed;
+            z-index: 9999;
+            padding: 12px 16px;
+            border-radius: 12px;
+            display: flex;
+            gap: 8px;
+            background: white;
+            color: #333;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .15s, transform .15s;
+            font-size: 14px;
+            border: 1px solid #e0e0e0;
+            transform: translateY(10px);
+        }
+
+        .selection-toolbar.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .selection-toolbar button {
+            background: transparent;
+            color: inherit;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transition: background-color 0.2s;
+            min-width: 60px;
+        }
+
+        .selection-toolbar button:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .selection-toolbar .button-text {
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        /* Color Picker */
+        .color-picker {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+            width: 200px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border: 1px solid #e0e0e0;
+        }
+
+        .color-picker.show {
+            display: flex;
+        }
+
+        .color-option {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+            border-color: #333;
+        }
+
+        .color-option.yellow { background-color: #ffc800; }
+        .color-option.green { background-color: #89e219; }
+        .color-option.blue { background-color: #1cb0f6; }
+        .color-option.red { background-color: #ff4b4b; }
+        .color-option.orange { background-color: #ff9600; }
+        .color-option.violet { background-color: #ce82ff; }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10001;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+            
+            .selection-toolbar {
+                flex-wrap: wrap;
+                width: 90%;
+                left: 5% !important;
+                justify-content: center;
+                bottom: 20px !important;
+                top: auto !important;
+            }
+            
+            .search-box {
+                width: 180px;
+            }
+            
+            article table {
+                display: block;
+                overflow-x: auto;
+            }
+            
+            .history-section, .revision-section {
+                padding: 16px;
+                margin: 20px 0;
+            }
+        }
+
+        /* Phosphor Icons sizing */
+        .ph {
+            font-size: 18px;
+        }
+
+        .selection-toolbar .ph {
+            font-size: 20px;
+        }
+        
+        /* Highlighter icon with colorful rays - ALWAYS VISIBLE */
+        .highlighter-icon-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .highlighter-icon-container::before {
+            content: "";
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: conic-gradient(
+                from 0deg,
+                #ffc800 0deg 60deg,
+                #89e219 60deg 120deg,
+                #1cb0f6 120deg 180deg,
+                #ff4b4b 180deg 240deg,
+                #ff9600 240deg 300deg,
+                #ce82ff 300deg 360deg
+            );
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        .color-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+        
+        /* Remove highlight button */
+        .remove-highlight-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .remove-highlight-container::before {
+            content: "";
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        /* Dynamic background color for remove button */
+        .remove-highlight-container.yellow::before { background-color: #ffc800; }
+        .remove-highlight-container.green::before { background-color: #89e219; }
+        .remove-highlight-container.blue::before { background-color: #1cb0f6; }
+        .remove-highlight-container.red::before { background-color: #ff4b4b; }
+        .remove-highlight-container.orange::before { background-color: #ff9600; }
+        .remove-highlight-container.violet::before { background-color: #ce82ff; }
+
+        /* small accessible focus */
+        .icon-btn:focus,.btn-sm:focus,.btn-lg:focus{outline:3px solid rgba(12,80,200,0.12);outline-offset:2px}
+
+        /* Font size panel header with close button */
+        .fontsize-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .fontsize-panel-title {
+            font-weight: 700;
+            color: #333;
+        }
+        .fontsize-close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .fontsize-close-btn:hover {
+            background: rgba(0,0,0,0.05);
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top blue header -->
+    <div class="statusbar" role="banner" aria-hidden="false">
+        <div class="navrow">
+            <div class="back" onclick="history.back()">
+                <!-- simple back chevron -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="transform:translateY(1px)"><path d="M15 18L9 12L15 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="display:flex;flex-direction:column">
+                <h2>Unit 1</h2>
+                <p>Chapter 1 — DNA: The Code of Life</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- White toolbar with glass effect -->
+    <div class="toolbar" role="toolbar" aria-label="Page controls">
+        <div class="left icon-row">
+            <button class="icon-btn" title="Menu" aria-label="Menu">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="#333" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+        </div>
+
+        <div class="icon-row" style="margin-left:auto;">
+            <!-- Updated Search Box with icons on the right -->
+            <div class="search-box" id="searchBox">
+                <input id="searchInput" type="text" placeholder="Find in page...">
+                <div class="search-icons">
+                    <i class="ph ph-x clear-btn" id="clearSearchBtn"></i>
+                    <i class="ph-thin ph-list-magnifying-glass search-icon" id="defaultSearchIcon"></i>
+                    <i class="ph-bold ph-magnifying-glass active-search-icon" id="activeSearchIcon"></i>
+                </div>
+            </div>
+
+            <div style="position:relative">
+                <button id="fontToggle" class="icon-btn" title="Text size" aria-label="Text size">
+                    <div class="aa-button">
+                        <span class="small-a">A</span>
+                        <span class="large-a">A</span>
+                    </div>
+                </button>
+
+                <div id="fontPanel" class="fontsize-panel" aria-hidden="true" role="dialog" aria-label="Text size">
+                    <div class="fontsize-panel-header">
+                        <div class="fontsize-panel-title">Text Size</div>
+                        <button class="fontsize-close-btn" id="fontCloseBtn" aria-label="Close text size panel">
+                            <i class="ph ph-x" style="font-size: 16px;"></i>
+                        </button>
+                    </div>
+                    <div style="font-size:13px;color:#666;margin-bottom:15px;">Adjust the content text size</div>
+                    <div class="row fontsize-controls">
+                        <button id="decBtn" class="btn-sm" aria-label="Decrease text size">A−</button>
+                        <input id="sizeRange" type="range" min="14" max="24" step="1" value="16" aria-label="Text size slider">
+                        <button id="incBtn" class="btn-lg" aria-label="Increase text size">A+</button>
+                    </div>
+                    <div style="margin-top:15px;font-size:13px;color:#666;text-align:center">Current: <span id="sizeLabel" style="font-weight:700;color:var(--google-blue);">16px</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Updated No match modal -->
+    <div id="noMatchModal" class="no-match-modal">
+        No matches found
+    </div>
+
+    <main id="mainContent" role="main" aria-live="polite">
+        <article id="articleContent">
+            <h1>DNA: Location, Structure and Functions</h1>
+
+            <h2>Location of DNA</h2>
+            <p>DNA is mainly found in two locations, leading to it being categorised as either:</p>
+            
+            <h3>1. <a href="#">Nuclear DNA</a></h3>
+            <ul>
+                <li><strong>Present in the nucleus</strong> (as <em>nuclear DNA</em>) – makes up genes on chromosomes.</li>
+            </ul>
+            
+            <h3>2. <a href="#">Extra-nuclear DNA</a></h3>
+            <ul>
+                <li><strong>Present in mitochondria</strong> (as <em>mitochondrial DNA</em>).</li>
+                <li><strong>Present in chloroplasts</strong> (in plant cells, as <em>chloroplast DNA</em>).</li>
+            </ul>
+
+            <div class="history-section">
+                <h2>Brief History on the Discovery of the DNA Molecule</h2>
+                
+                <p>During the early 20th century, scientists already knew the chemical composition of DNA and understood that it carried genetic information. However, its three-dimensional structure remained unknown. Understanding its shape was considered essential because the structure would explain how DNA stores information, replicates accurately, and directs protein production. For this reason, many scientists were actively working to determine the true form of the DNA molecule.</p>
+
+                <p>The solution eventually came through the combined efforts of several scientists:</p>
+
+                <ul>
+                    <li><strong>Rosalind Franklin</strong>: An expert in X-ray crystallography. Her clear diffraction image, <em>Photograph 51</em>, provided strong evidence that DNA had a helical (spiral) structure and was crucial for interpreting the molecule's shape.</li>
+                </ul>
+
+                <div class="figure-container">
+                    <img src="https://raw.githubusercontent.com/EnzoFarai/RsLib/main/images/lessons/photograph-51.png" alt="Photograph 51" class="figure-image">
+                    <div class="figure-caption">Figure 1: <em>Photograph 51</em>, the X-ray image of DNA taken by Rosalind Franklin, shows a clear "X" pattern. The angles and pattern of this X, along with other features of the image, provided crucial evidence used to build the first accurate double-helix model.</div>
+                </div>
+
+                <ul>
+                    <li><strong>Maurice Wilkins</strong>: A colleague of Franklin who also worked with DNA using X-ray techniques. He shared Franklin's data—without her knowledge—with James Watson and Francis Crick.</li>
+                    <li><strong>James Watson and Francis Crick</strong>: Using Franklin's X-ray data and existing chemical evidence, they built the first accurate model of DNA in 1953. Their model showed DNA as two strands twisted into a <a href="#">double helix</a>, with complementary base pairs: adenine (A) pairing with thymine (T), and guanine (G) pairing with cytosine (C).</li>
+                </ul>
+
+                <p>The work of all four scientists helped further biology, medicine, and the emerging field of biotechnology. In 1962, for their contributions, Watson, Crick, and Wilkins were awarded the Nobel Prize in Physiology or Medicine, one of the highest honours in science. Franklin, who had died in 1958, was not included, as the prize is not awarded posthumously (after death).</p>
+
+                <div class="figure-container">
+                    <img src="https://raw.githubusercontent.com/EnzoFarai/RsLib/main/images/lessons/Nobel-Prize-in-Physiology-or-Medicine-1962.png" alt="Nobel Prize winners" class="figure-image">
+                    <div class="figure-caption">Figure 2: The Nobel Prize in Physiology or Medicine in 1962 was awarded to Francis Crick, James Watson and Maurice Wilkins for their discovery of the molecular structure of DNA.</div>
+                </div>
+            </div>
+
+            <h2>Structure of DNA</h2>
+            <p>The natural shape of the DNA molecule is a <a href="#">double helix</a>.</p>
+            <p>Each strand of the helix is made up of a sequence of monomers (building blocks) called <strong>nucleotides</strong>.</p>
+
+            <div class="figure-container">
+                <img src="https://raw.githubusercontent.com/EnzoFarai/RsLib/main/images/lessons/Structure-of-DNA.png" alt="Structure of DNA" class="figure-image">
+                <div class="figure-caption">Figure 3: The Structure of DNA</div>
+            </div>
+
+            <h3>Components of a DNA Nucleotide</h3>
+            <p>DNA nucleotides consist of three components:</p>
+            <ul>
+                <li><strong>Four nitrogenous bases</strong>, which are linked by <strong>weak hydrogen bonds</strong>:
+                    The four bases are <em>adenine (A)</em>, <em>thymine (T)</em>, <em>cytosine (C)</em>, and <em>guanine (G)</em>.</li>
+            </ul>
+            
+            <p><strong>Base pairing in DNA occurs as follows:</strong></p>
+            <ul>
+                <li><em>Adenine (A) pairs with Thymine (T)</em></li>
+                <li><em>Guanine (G) pairs with Cytosine (C)</em></li>
+            </ul>
+            
+            <ul>
+                <li>A <strong>sugar portion</strong> (known as <strong>deoxyribose</strong> in DNA)</li>
+                <li>A <strong>phosphate group</strong></li>
+            </ul>
+
+            <div class="figure-container">
+                <img src="https://raw.githubusercontent.com/EnzoFarai/RsLib/main/images/lessons/dna-components.jpeg" alt="DNA nucleotide components" class="figure-image">
+                <div class="figure-caption">Figure 4: The components of a DNA nucleotide</div>
+            </div>
+
+            <h2>Functions of DNA</h2>
+            <p>Along with other roles in organisms, DNA mainly performs two key functions:</p>
+            <ul>
+                <li><strong>DNA makes up genes which carry <a href="#">hereditary</a> information.</strong>
+                    These genes pass characteristics from parents to offspring.</li>
+                <li><strong>DNA contains coded information for protein synthesis.</strong>
+                    This code tells cells how to make proteins, which are essential for growth and proper functioning.</li>
+            </ul>
+        </article>
+    </main>
+
+    <div class="finder-footer" style="display:none" id="finderFooter">
+        <div style="background:#fff;border-radius:12px;padding:8px 12px;border:1px solid rgba(0,0,0,0.06);display:flex;gap:8px;align-items:center;">
+            <button id="clearFind" class="btn-sm">Clear</button>
+            <div id="foundInfo" style="font-weight:600">0 matches</div>
+        </div>
+    </div>
+
+    <!-- Custom Selection Toolbar -->
+    <div class="selection-toolbar" id="selectionToolbar">
+        <button id="removeHighlightBtn" style="display: none;">
+            <div class="remove-highlight-container" id="removeHighlightContainer">
+                <i class="ph ph-x" style="color: black;"></i>
+            </div>
+            <span class="button-text">Remove</span>
+        </button>
+        <button id="highlightBtn">
+            <div class="highlighter-icon-container">
+                <i class="ph ph-highlighter"></i>
+            </div>
+            <span class="button-text">Highlight</span>
+        </button>
+        <div class="color-picker" id="colorPicker">
+            <div class="color-picker-grid">
+                <div class="color-option yellow" onclick="highlightSelection('yellow')" title="Yellow"></div>
+                <div class="color-option green" onclick="highlightSelection('green')" title="Green"></div>
+                <div class="color-option blue" onclick="highlightSelection('blue')" title="Blue"></div>
+                <div class="color-option red" onclick="highlightSelection('red')" title="Red"></div>
+                <div class="color-option orange" onclick="highlightSelection('orange')" title="Orange"></div>
+                <div class="color-option violet" onclick="highlightSelection('violet')" title="Violet"></div>
+            </div>
+        </div>
+        <button onclick="noteSelection()">
+            <i class="ph ph-note-pencil"></i>
+            <span class="button-text">Note</span>
+        </button>
+        <button onclick="copySelection()">
+            <i class="ph ph-copy"></i>
+            <span class="button-text">Copy</span>
+        </button>
+        <button onclick="shareSelection()">
+            <i class="ph-fill ph-share-network" style="font-size: 20px;"></i>
+            <span class="button-text">Share</span>
+        </button>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Font size control logic - Only affects main content below toolbar
+        (function(){
+            const panel = document.getElementById('fontPanel');
+            const toggle = document.getElementById('fontToggle');
+            const range = document.getElementById('sizeRange');
+            const dec = document.getElementById('decBtn');
+            const inc = document.getElementById('incBtn');
+            const label = document.getElementById('sizeLabel');
+            const main = document.getElementById('mainContent');
+            const closeBtn = document.getElementById('fontCloseBtn');
+
+            // Initialize from range default
+            function applySize(px){
+                document.documentElement.style.setProperty('--content-size', px + 'px');
+                label.textContent = px + 'px';
+                
+                // Update the AA button to reflect current size
+                updateAAButton(px);
+            }
+
+            function updateAAButton(size) {
+                const smallA = document.querySelector('.small-a');
+                const largeA = document.querySelector('.large-a');
+                
+                // Adjust the A sizes relative to the current font size
+                const baseSmall = 14;
+                const baseLarge = 18;
+                const ratio = size / 16; // 16 is the default
+                
+                smallA.style.fontSize = (baseSmall * ratio) + 'px';
+                largeA.style.fontSize = (baseLarge * ratio) + 'px';
+            }
+
+            applySize(parseInt(range.value,10));
+
+            toggle.addEventListener('click', (e)=>{
+                panel.classList.toggle('show');
+                e.stopPropagation();
+            });
+
+            // Close panel when X button is clicked
+            closeBtn.addEventListener('click', (e)=>{
+                panel.classList.remove('show');
+                e.stopPropagation();
+            });
+
+            // close when clicking outside
+            document.addEventListener('click', (e)=>{
+                if(!panel.contains(e.target) && e.target !== toggle){
+                    panel.classList.remove('show');
+                }
+            });
+
+            range.addEventListener('input', (e)=>{
+                applySize(parseInt(e.target.value,10));
+            });
+
+            dec.addEventListener('click', ()=>{
+                let v = Math.max(parseInt(range.min), parseInt(range.value)-1);
+                range.value = v; 
+                applySize(v);
+            });
+            inc.addEventListener('click', ()=>{
+                let v = Math.min(parseInt(range.max), parseInt(range.value)+1);
+                range.value = v; 
+                applySize(v);
+            });
+        })();
+
+        // Search/find-in-page logic with new design
+        (function(){
+            const searchBox = document.getElementById('searchBox');
+            const searchInput = document.getElementById('searchInput');
+            const defaultSearchIcon = document.getElementById('defaultSearchIcon');
+            const activeSearchIcon = document.getElementById('activeSearchIcon');
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
+            const article = document.getElementById('articleContent');
+            const finderFooter = document.getElementById('finderFooter');
+            const clearFind = document.getElementById('clearFind');
+            const foundInfo = document.getElementById('foundInfo');
+            const noMatchModal = document.getElementById('noMatchModal');
+
+            let hits = [];
+            let current = -1;
+
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            function updateSearchBoxState() {
+                const hasText = searchInput.value.length > 0;
+                if (hasText) {
+                    searchBox.classList.add('has-text');
+                } else {
+                    searchBox.classList.remove('has-text');
+                }
+            }
+
+            function clearHighlights(){
+                const marks = article.querySelectorAll('mark.search-hit');
+                marks.forEach(m=>{
+                    const parent = m.parentNode;
+                    parent.replaceChild(document.createTextNode(m.textContent), m);
+                    parent.normalize();
+                });
+                hits = [];
+                current = -1;
+                foundInfo.textContent = '0 matches';
+                finderFooter.style.display = 'none';
+                searchBox.classList.remove('searching');
+            }
+
+            function highlightAll(term){
+                clearHighlights();
+                if(!term) return;
+                
+                const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT, null, false);
+                const nodes = [];
+                while(walker.nextNode()) nodes.push(walker.currentNode);
+                
+                const re = new RegExp(escapeRegExp(term), 'ig');
+                nodes.forEach(node=>{
+                    const parent = node.parentNode;
+                    if(parent && parent.closest && parent.closest('mark.search-hit')) return;
+                    
+                    const text = node.textContent;
+                    if(re.test(text)){
+                        const frag = document.createDocumentFragment();
+                        let lastIndex = 0;
+                        node.textContent.replace(re, function(match, offset){
+                            if(offset > lastIndex){
+                                frag.appendChild(document.createTextNode(text.slice(lastIndex, offset)));
+                            }
+                            const m = document.createElement('mark');
+                            m.className = 'search-hit';
+                            m.textContent = match;
+                            frag.appendChild(m);
+                            lastIndex = offset + match.length;
+                            return match;
+                        });
+                        if(lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                        parent.replaceChild(frag, node);
+                    }
+                });
+
+                hits = Array.from(article.querySelectorAll('mark.search-hit'));
+                
+                // FIXED: Always add searching class after ANY search attempt
+                searchBox.classList.add('searching');
+                
+                if(hits.length){
+                    current = 0;
+                    scrollToHit(current);
+                    finderFooter.style.display = 'flex';
+                } else {
+                    current = -1;
+                    // Show no matches modal that auto-dismisses
+                    noMatchModal.classList.add('show');
+                    setTimeout(() => {
+                        noMatchModal.classList.remove('show');
+                    }, 3000);
+                }
+                updateCounter();
+            }
+
+            function updateCounter(){
+                foundInfo.textContent = hits.length + (hits.length === 1 ? ' match' : ' matches');
+            }
+
+            function scrollToHit(index){
+                if(hits.length === 0) return;
+                hits.forEach(h => h.style.outline = 'none');
+                const el = hits[index];
+                el.scrollIntoView({behavior:'smooth', block:'center'});
+                el.style.outline = '3px solid rgba(255,180,0,0.4)';
+                setTimeout(()=>{ el.style.outline = 'none'; }, 1400);
+                updateCounter();
+            }
+
+            // Search on Enter key or search icon click
+            function performSearch(){
+                const term = searchInput.value.trim();
+                if(term){
+                    highlightAll(term);
+                } else {
+                    clearHighlights();
+                }
+            }
+
+            // Event listeners for search
+            searchInput.addEventListener('input', updateSearchBoxState);
+            
+            searchInput.addEventListener('keydown', (e)=>{
+                if(e.key === 'Enter'){
+                    performSearch();
+                }
+            });
+
+            // Click on search icons to perform search
+            defaultSearchIcon.addEventListener('click', performSearch);
+            activeSearchIcon.addEventListener('click', performSearch);
+
+            // Clear search button
+            clearSearchBtn.addEventListener('click', ()=>{
+                searchInput.value = '';
+                updateSearchBoxState();
+                clearHighlights();
+                searchInput.focus();
+            });
+
+            clearFind.addEventListener('click', ()=>{
+                searchInput.value = '';
+                updateSearchBoxState();
+                clearHighlights();
+            });
+
+            // FIXED: Show icons again when search box is focused - for ALL cases
+            searchInput.addEventListener('focus', () => {
+                searchBox.classList.remove('searching');
+            });
+
+            // Close font panel with Escape
+            document.addEventListener('keydown', (e)=>{
+                if(e.key === 'Escape'){
+                    document.getElementById('fontPanel').classList.remove('show');
+                }
+            });
+
+            // Click on a mark to jump to it
+            article.addEventListener('click', (e)=>{
+                const m = e.target.closest('mark.search-hit');
+                if(m){
+                    const idx = hits.indexOf(m);
+                    if(idx >= 0){
+                        current = idx;
+                        scrollToHit(current);
+                    }
+                }
+            });
+
+            // Initialize search box state
+            updateSearchBoxState();
+
+        })();
+
+        // Highlighting functionality
+        let selectionRange = null;
+        let highlightColorPickerVisible = false;
+
+        // Initialize the article content
+        function initializeArticle() {
+            // Load saved highlights
+            loadHighlights();
+            
+            // Add selection event listeners
+            addSelectionListeners();
+            
+            // Disable native context menus and selection toolbars
+            disableNativeMenus();
+        }
+
+        // Disable native context menus and selection toolbars
+        function disableNativeMenus() {
+            // Prevent context menu
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Prevent text selection toolbar on iOS
+            document.addEventListener('selectionchange', () => {
+                // Clear any native selection UI immediately
+                if (window.getSelection && window.getSelection().toString().length > 0) {
+                    // Our custom toolbar will handle this
+                }
+            });
+            
+            // Additional prevention for touch devices
+            document.addEventListener('touchstart', (e) => {
+                // Prevent long-press context menu on touch devices
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            document.addEventListener('touchend', (e) => {
+                // Prevent context menu on long press
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            // Prevent text selection menu on Android/Chrome
+            document.addEventListener('selectstart', (e) => {
+                // Let the selection happen but prevent the default menu
+                // We'll show our custom toolbar instead
+            });
+        }
+
+        // Enhanced selection system using native selection
+        function addSelectionListeners() {
+            const articleContent = document.getElementById('articleContent');
+            const toolbar = document.getElementById('selectionToolbar');
+            const highlightBtn = document.getElementById('highlightBtn');
+            const colorPicker = document.getElementById('colorPicker');
+            const removeHighlightBtn = document.getElementById('removeHighlightBtn');
+
+            // Show toolbar when text is selected
+            document.addEventListener('selectionchange', () => {
+                const selection = window.getSelection();
+                
+                if (!selection.isCollapsed && isSelectionInArticle(selection)) {
+                    showSelectionToolbar(selection);
+                } else {
+                    hideSelectionToolbar();
+                }
+            });
+
+            // Toggle color picker
+            highlightBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                colorPicker.classList.toggle('show');
+                highlightColorPickerVisible = colorPicker.classList.contains('show');
+            });
+
+            // Close color picker when clicking elsewhere
+            document.addEventListener('click', (e) => {
+                if (highlightColorPickerVisible && !colorPicker.contains(e.target) && e.target !== highlightBtn) {
+                    colorPicker.classList.remove('show');
+                    highlightColorPickerVisible = false;
+                }
+            });
+
+            // Handle remove highlight button
+            removeHighlightBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeSelectedHighlight();
+            });
+        }
+
+        function isSelectionInArticle(selection) {
+            const articleContent = document.getElementById('articleContent');
+            return articleContent.contains(selection.anchorNode) || 
+                   articleContent.contains(selection.focusNode);
+        }
+
+        function showSelectionToolbar(selection) {
+            const toolbar = document.getElementById('selectionToolbar');
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            
+            // Position toolbar at bottom of selection with some offset
+            toolbar.style.left = `${rect.left + window.scrollX}px`;
+            toolbar.style.bottom = `${window.innerHeight - rect.bottom + window.scrollY + 10}px`;
+            toolbar.style.top = 'auto';
+            
+            // Adjust if toolbar goes off screen
+            const toolbarRect = toolbar.getBoundingClientRect();
+            if (toolbarRect.right > window.innerWidth) {
+                toolbar.style.left = `${window.innerWidth - toolbarRect.width - 10}px`;
+            }
+            if (toolbarRect.bottom > window.innerHeight) {
+                // If bottom positioning doesn't work, position above selection
+                toolbar.style.bottom = 'auto';
+                toolbar.style.top = `${rect.top + window.scrollY - toolbarRect.height - 10}px`;
+            }
+            
+            // Check if selection contains highlights
+            const hasHighlight = checkSelectionHasHighlight(selection);
+            const removeHighlightBtn = document.getElementById('removeHighlightBtn');
+            const removeHighlightContainer = document.getElementById('removeHighlightContainer');
+            
+            // Only show remove button if selection contains highlights
+            if (hasHighlight) {
+                removeHighlightBtn.style.display = 'flex';
+                
+                // Get the most recent highlight color in the selection
+                const highlightColor = getMostRecentHighlightColor(selection);
+                if (highlightColor) {
+                    // Update remove button background to match highlight color
+                    removeHighlightContainer.className = 'remove-highlight-container ' + highlightColor;
+                }
+            } else {
+                removeHighlightBtn.style.display = 'none';
+            }
+            
+            toolbar.classList.add('show');
+            selectionRange = range;
+        }
+
+        function hideSelectionToolbar() {
+            const toolbar = document.getElementById('selectionToolbar');
+            const colorPicker = document.getElementById('colorPicker');
+            
+            toolbar.classList.remove('show');
+            colorPicker.classList.remove('show');
+            highlightColorPickerVisible = false;
+            selectionRange = null;
+        }
+
+        function checkSelectionHasHighlight(selection) {
+            const range = selection.getRangeAt(0);
+            
+            // Check if selection contains any highlighted elements
+            const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_ELEMENT,
+                {
+                    acceptNode: function(node) {
+                        // Check if the node is within the selection and has a highlight class
+                        if (range.intersectsNode(node) && 
+                            (node.classList.contains('highlighted-yellow') ||
+                             node.classList.contains('highlighted-green') ||
+                             node.classList.contains('highlighted-blue') ||
+                             node.classList.contains('highlighted-red') ||
+                             node.classList.contains('highlighted-orange') ||
+                             node.classList.contains('highlighted-violet'))) {
+                            return NodeFilter.FILTER_ACCEPT;
+                        }
+                        return NodeFilter.FILTER_SKIP;
+                    }
+                },
+                false
+            );
+            
+            return walker.nextNode() !== null;
+        }
+
+        // helpers for grouped highlight storage (history + by-group map)
+        function getHighlightsState() {
+            const byGroup = JSON.parse(localStorage.getItem('highlightsByGroup') || '{}');
+            const history = JSON.parse(localStorage.getItem('highlightHistory') || '[]');
+            return { byGroup, history };
+        }
+        function setHighlightsState(byGroup, history) {
+            localStorage.setItem('highlightsByGroup', JSON.stringify(byGroup));
+            localStorage.setItem('highlightHistory', JSON.stringify(history));
+        }
+
+        function highlightSelection(color) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            // single group id and timestamp per operation
+            const groupId = 'hgrp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+            const groupTimestamp = Date.now();
+
+            const ranges = [];
+            for (let i = 0; i < selection.rangeCount; i++) {
+                ranges.push(selection.getRangeAt(i).cloneRange());
+            }
+
+            let aggregatedText = '';
+
+            ranges.forEach(range => {
+                const selectedText = range.toString().trim();
+                if (!selectedText) return;
+                aggregatedText += (aggregatedText ? ' ' : '') + selectedText;
+
+                const article = document.getElementById('articleContent');
+                const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT, {
+                    acceptNode: node => range.intersectsNode(node)
+                        ? NodeFilter.FILTER_ACCEPT
+                        : NodeFilter.FILTER_REJECT
+                });
+
+                const nodes = [];
+                let node;
+                while ((node = walker.nextNode())) nodes.push(node);
+
+                nodes.forEach(textNode => {
+                    if (textNode.textContent.trim() === '') return;
+                    const nodeRange = document.createRange();
+                    nodeRange.selectNodeContents(textNode);
+                    if (range.compareBoundaryPoints(Range.START_TO_START, nodeRange) > 0)
+                        nodeRange.setStart(range.startContainer, range.startOffset);
+                    if (range.compareBoundaryPoints(Range.END_TO_END, nodeRange) < 0)
+                        nodeRange.setEnd(range.endContainer, range.endOffset);
+
+                    const fragment = nodeRange.extractContents();
+                    const span = document.createElement('span');
+                    span.className = `highlighted-${color}`;
+                    // group metadata on each span
+                    span.dataset.highlightGroupId = groupId;
+                    span.dataset.groupTimestamp = String(groupTimestamp);
+                    span.appendChild(fragment);
+                    nodeRange.insertNode(span);
+                });
+            });
+
+            if (aggregatedText) {
+                const { byGroup, history } = getHighlightsState();
+                byGroup[groupId] = { color, text: aggregatedText, timestamp: groupTimestamp };
+                history.push(groupId);
+                setHighlightsState(byGroup, history);
+            }
+
+            selection.removeAllRanges();
+            hideSelectionToolbar();
+        }
+
+        function removeSelectedHighlight() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            // discover all groups inside the selection
+            const groupsInSelection = new Set();
+            for (let i = 0; i < selection.rangeCount; i++) {
+                const range = selection.getRangeAt(i);
+                const walker = document.createTreeWalker(
+                    document.body,
+                    NodeFilter.SHOW_ELEMENT,
+                    {
+                        acceptNode: function(node) {
+                            if (range.intersectsNode(node) &&
+                                (node.classList.contains('highlighted-yellow') ||
+                                 node.classList.contains('highlighted-green') ||
+                                 node.classList.contains('highlighted-blue') ||
+                                 node.classList.contains('highlighted-red') ||
+                                 node.classList.contains('highlighted-orange') ||
+                                 node.classList.contains('highlighted-violet'))) {
+                                const gid = node.dataset?.highlightGroupId;
+                                if (gid) groupsInSelection.add(gid);
+                                return NodeFilter.FILTER_ACCEPT;
+                            }
+                            return NodeFilter.FILTER_SKIP;
+                        }
+                    },
+                    false
+                );
+                // exhaust walker to collect groups
+                while (walker.nextNode()) {}
+            }
+
+            if (groupsInSelection.size === 0) return;
+
+            const { byGroup, history } = getHighlightsState();
+
+            // choose most recent by history order; fallback to timestamp if needed
+            let targetGroupId = null;
+            for (let i = history.length - 1; i >= 0; i--) {
+                if (groupsInSelection.has(history[i])) {
+                    targetGroupId = history[i];
+                    break;
+                }
+            }
+            if (!targetGroupId) {
+                targetGroupId = Array.from(groupsInSelection).sort(
+                    (a, b) => (byGroup[b]?.timestamp || 0) - (byGroup[a]?.timestamp || 0)
+                )[0];
+            }
+            if (!targetGroupId) return;
+
+            // unwrap all spans belonging to the target group
+            document.querySelectorAll(`[data-highlight-group-id="${targetGroupId}"]`).forEach(el => {
+                const textNode = document.createTextNode(el.textContent);
+                el.parentNode.replaceChild(textNode, el);
+            });
+
+            // update storage (remove group and its entry from history)
+            delete byGroup[targetGroupId];
+            const newHistory = history.filter(id => id !== targetGroupId);
+            setHighlightsState(byGroup, newHistory);
+
+            showToast('Highlight removed');
+
+            // update toolbar state
+            if (checkSelectionHasHighlight(selection)) {
+                const nextColor = getMostRecentHighlightColor(selection);
+                const removeHighlightContainer = document.getElementById('removeHighlightContainer');
+                if (nextColor) {
+                    removeHighlightContainer.className = 'remove-highlight-container ' + nextColor;
+                }
+            } else {
+                hideSelectionToolbar();
+                selection.removeAllRanges();
+            }
+        }
+
+        function getMostRecentHighlightColor(selection) {
+            const { byGroup, history } = getHighlightsState();
+            const groupsInSelection = new Set();
+
+            const range = selection.getRangeAt(0);
+            const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_ELEMENT,
+                {
+                    acceptNode: function(node) {
+                        if (range.intersectsNode(node) &&
+                            (node.classList.contains('highlighted-yellow') ||
+                             node.classList.contains('highlighted-green') ||
+                             node.classList.contains('highlighted-blue') ||
+                             node.classList.contains('highlighted-red') ||
+                             node.classList.contains('highlighted-orange') ||
+                             node.classList.contains('highlighted-violet'))) {
+                            const gid = node.dataset?.highlightGroupId;
+                            if (gid) groupsInSelection.add(gid);
+                            return NodeFilter.FILTER_ACCEPT;
+                        }
+                        return NodeFilter.FILTER_SKIP;
+                    }
+                },
+                false
+            );
+            while (walker.nextNode()) {}
+
+            // most recent group in selection by history order
+            for (let i = history.length - 1; i >= 0; i--) {
+                const gid = history[i];
+                if (groupsInSelection.has(gid)) {
+                    return byGroup[gid]?.color || null;
+                }
+            }
+            return null;
+        }
+
+        function loadHighlights() {
+            const { byGroup } = getHighlightsState();
+            Object.entries(byGroup).forEach(([id, data]) => {
+                console.log(`Highlight Group: ${id} - ${data.text} (${data.color})`);
+            });
+        }
+
+        function noteSelection() {
+            if (!selectionRange) return;
+            
+            const selectedText = selectionRange.toString();
+            const note = prompt(`Add a note for:\n"${selectedText}"`);
+            
+            if (note) {
+                const notes = JSON.parse(localStorage.getItem('notes') || '[]');
+                notes.push({
+                    text: selectedText,
+                    note: note,
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem('notes', JSON.stringify(notes));
+                showToast('Note saved!');
+            }
+            
+            hideSelectionToolbar();
+            window.getSelection().removeAllRanges();
+        }
+
+        async function copySelection() {
+            if (!selectionRange) return;
+            
+            const selectedText = selectionRange.toString();
+            
+            try {
+                await navigator.clipboard.writeText(selectedText);
+                showToast('Copied to clipboard!');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = selectedText;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Copied to clipboard!');
+            }
+            
+            hideSelectionToolbar();
+            window.getSelection().removeAllRanges();
+        }
+
+        // Share functionality using Web Share API
+        async function shareSelection() {
+            if (!selectionRange) return;
+            
+            const selectedText = selectionRange.toString();
+            const articleTitle = document.querySelector('h1').textContent;
+            const pageUrl = window.location.href;
+            
+            // Check if Web Share API is available
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: articleTitle,
+                        text: selectedText,
+                        url: pageUrl
+                    });
+                    showToast('Shared successfully!');
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.error('Error sharing:', error);
+                        showToast('Failed to share');
+                    }
+                }
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                try {
+                    await navigator.clipboard.writeText(`${selectedText}\n\nFrom: ${articleTitle}\n${pageUrl}`);
+                    showToast('Text copied to clipboard for sharing!');
+                } catch (err) {
+                    // Final fallback
+                    const textArea = document.createElement('textarea');
+                    textArea.value = `${selectedText}\n\nFrom: ${articleTitle}\n${pageUrl}`;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showToast('Text copied to clipboard for sharing!');
+                }
+            }
+            
+            hideSelectionToolbar();
+            window.getSelection().removeAllRanges();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initializeArticle);
+    </script>
+</body>
+</html>

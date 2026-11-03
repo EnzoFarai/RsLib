@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highlights Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <!-- UPDATED: Atkinson Hyperlegible -> Atkinson Hyperlegible Next -->
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+    <!-- Fallback for older versions -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/phosphor-icons@1.4.2/src/css/phosphor.css">
+    <style>
+        /* === Global reset & variables — EXACT same sizing, only font family updated === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* UPDATED: Atkinson Hyperlegible -> Atkinson Hyperlegible Next */
+            font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary-highlight: #FF9800;        /* orange accent for highlights */
+            --dark-highlight: #FB8C00;
+            --light-highlight: #FFF3E0;
+            --accent-blue: #4285F4;
+            --accent-green: #0F9D58;
+            --accent-red: #DB4437;
+            --accent-yellow: #F4B400;
+            --accent-turquoise: #40E0D0;
+            --text-dark: #202124;
+            --text-medium: #5F6368;
+            --text-light: #FFFFFF;
+            --bg-light: #F8F9FA;
+            --border-radius: 16px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 24px 20px;
+            /* UPDATED: Atkinson Hyperlegible -> Atkinson Hyperlegible Next */
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* === HEADER: highlights icon (ph-highlighter) – SIZING UNCHANGED === */
+        .highlights-header {
+            display: flex;
+            margin-bottom: 24px;
+        }
+
+        .highlights-icon {
+            width: 140px;
+            height: 140px;
+            background-color: var(--primary-highlight);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 24px;
+            flex-shrink: 0;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .highlights-icon:hover {
+            transform: scale(1.02);
+        }
+
+        .highlights-icon i.ph {
+            font-size: 70px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: normal;
+        }
+
+        /* Specific fix for ph-highlighter to ensure it shows */
+        .ph-highlighter:before {
+            content: "\e9e4"; /* Unicode for highlighter icon in Phosphor */
+        }
+
+        .share-icon-overlay {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .share-icon-overlay:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .share-icon-overlay .material-symbols-outlined {
+            font-size: 18px;
+            color: white;
+        }
+
+        .highlights-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .highlights-details h1 {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--primary-highlight);
+        }
+
+        .highlights-stats {
+            color: var(--text-medium);
+            font-size: 13px;
+            margin-bottom: 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-link {
+            color: var(--primary-highlight);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .user-link:hover {
+            color: var(--dark-highlight);
+            text-decoration: underline;
+        }
+
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border-radius: 500px;
+            border: none;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            white-space: nowrap;
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary-highlight);
+            border: 1px solid var(--primary-highlight);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--light-highlight);
+            border-color: var(--dark-highlight);
+        }
+
+        .btn i {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        /* === TABLE – EXACT column sizing as original, heading "Highlighted" === */
+        .highlights-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 13px;
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .highlights-table thead {
+            border-bottom: 1px solid var(--light-highlight);
+            color: var(--text-medium);
+            font-size: 12px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: var(--light-highlight);
+        }
+
+        .highlights-table th {
+            text-align: left;
+            padding: 12px 10px;
+            font-weight: 500;
+        }
+
+        .highlights-table th:first-child {
+            width: 30px;
+            text-align: center;
+            padding-left: 6px;
+        }
+
+        .highlights-table th:nth-child(2) {
+            min-width: 150px;
+        }
+
+        .highlights-table tbody tr {
+            border-bottom: 1px solid var(--light-highlight);
+            transition: background-color 0.2s;
+            cursor: default;
+        }
+
+        .highlights-table tbody tr:hover {
+            background-color: var(--light-highlight);
+        }
+
+        .highlights-table tbody tr.dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+            cursor: grabbing;
+        }
+
+        .highlights-table tbody tr.drag-over {
+            border-top: 2px solid var(--primary-highlight);
+        }
+
+        .highlights-table td {
+            padding: 12px 10px;
+            vertical-align: middle;
+        }
+
+        .highlights-table td:first-child {
+            text-align: center;
+            color: var(--text-medium);
+            padding-left: 6px;
+        }
+
+        .highlight-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .source-icon {
+            width: 36px;
+            height: 36px;
+            background-color: var(--light-highlight);
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 8px;
+            position: relative;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .source-icon::after {
+            content: attr(data-source);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 152, 0, 0.95);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .source-icon::before {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent rgba(255, 152, 0, 0.95) transparent;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .source-icon:hover::after,
+        .source-icon:hover::before,
+        .source-icon.show-tooltip::after,
+        .source-icon.show-tooltip::before {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .highlight-details {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .highlight-details h4 {
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 20px;
+            line-height: 20px;
+            color: var(--text-dark);
+        }
+
+        .highlight-title-link {
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .highlight-title-link:hover {
+            color: var(--primary-highlight);
+        }
+
+        .source-chapter-info {
+            color: var(--text-medium);
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 17px;
+            line-height: 17px;
+        }
+
+        .source-link, .chapter-ref-link {
+            color: var(--text-medium);
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .source-link:hover, .chapter-ref-link:hover {
+            color: var(--primary-highlight);
+            text-decoration: underline;
+        }
+
+        .timestamp {
+            position: relative;
+            cursor: help;
+            color: var(--text-medium);
+            font-size: 12px;
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: left;
+        }
+
+        .timestamp:hover::after {
+            content: attr(data-exact-time);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 100;
+            pointer-events: none;
+            margin-bottom: 5px;
+        }
+
+        .timestamp:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+            margin-bottom: -5px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .topic-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            width: 50px;
+            padding-right: 10px;
+        }
+
+        .more-options-btn {
+            color: var(--text-medium);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 20px;
+            background: none;
+            border: none;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .reorder-mode .more-options-btn {
+            cursor: grab;
+            color: var(--primary-highlight);
+        }
+
+        .more-options-btn:hover {
+            color: var(--primary-highlight);
+            background-color: var(--light-highlight);
+        }
+
+        .reorder-mode .more-options-btn:hover {
+            background-color: rgba(255, 152, 0, 0.1);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+
+        /* === MODAL – unchanged sizing === */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: white;
+            width: 95%;
+            max-width: 600px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--light-highlight);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--light-highlight);
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-dark);
+            /* UPDATED: Atkinson Hyperlegible -> Atkinson Hyperlegible Next */
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .highlight-list-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background-color 0.2s;
+            gap: 12px;
+            border: 1px solid var(--light-highlight);
+        }
+
+        .highlight-list-item .source-icon {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+        }
+
+        .highlight-list-item .highlight-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .btn-add {
+            background-color: white;
+            color: var(--primary-highlight);
+            border: 1px solid var(--primary-highlight);
+            padding: 5px 12px;
+            border-radius: 500px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-add:hover {
+            background-color: var(--primary-highlight);
+            color: white;
+        }
+
+        .btn-added {
+            background-color: var(--primary-highlight);
+            color: white;
+            pointer-events: none;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--light-highlight);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* === CONTEXT MENU – unchanged === */
+        .context-menu {
+            position: fixed;
+            background-color: white;
+            border: 1px solid var(--light-highlight);
+            border-radius: var(--border-radius);
+            padding: 8px 0;
+            min-width: 200px;
+            box-shadow: var(--shadow-md);
+            z-index: 1001;
+            display: none;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            gap: 12px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .context-menu-item:hover {
+            background-color: var(--light-highlight);
+        }
+
+        .context-menu-item .material-symbols-outlined {
+            font-size: 18px;
+            color: var(--text-medium);
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background-color: var(--light-highlight);
+            margin: 4px 0;
+        }
+
+        .custom-tooltip {
+            position: fixed;
+            background-color: rgba(255, 152, 0, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10000;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            margin-top: -8px;
+            max-width: 300px;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            display: none;
+        }
+        .custom-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: rgba(255, 152, 0, 0.95) transparent transparent transparent;
+        }
+
+        .reorder-mode-banner {
+            background-color: var(--primary-highlight);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .exit-reorder-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .exit-reorder-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* === SHARE OVERLAY – unchanged === */
+        .share-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .share-content {
+            width: 100%;
+            max-width: 357px;
+            background: #f5f5f7;
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        .share-card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 32px 24px 28px;
+            margin-bottom: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,.06);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .share-brand {
+            margin-top: 16px;
+            font-weight: 700;
+            color: var(--primary-highlight);
+            font-size: 24px;
+        }
+
+        .share-sheet {
+            background: #fff;
+            border-top: 1px solid #dadada;
+            border-radius: 24px 24px 0 0;
+            padding: 16px 12px;
+        }
+
+        .share-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .share-item, .bottom-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .share-icon-circle, .bottom-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .share-icon, .bottom-icon {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .share-icon img { width: 100%; height: 100%; object-fit: contain; }
+        .share-text, .share-bottom-text { font-size: 11px; color: #333; }
+        .bottom-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 0 20px; }
+
+        /* === RESPONSIVE – EXACT original breakpoints, no sizing changes === */
+        @media (max-width: 992px) {
+            .highlights-details h1 { font-size: 36px; }
+            .highlights-icon { width: 120px; height: 120px; margin-right: 20px; }
+            .highlights-icon i.ph { font-size: 60px; }
+            .share-icon-overlay { width: 28px; height: 28px; bottom: 10px; right: 10px; }
+            .share-icon-overlay .material-symbols-outlined { font-size: 16px; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 16px 12px; }
+            .highlights-header { flex-direction: column; }
+            .highlights-icon { width: 100%; height: 160px; margin-right: 0; margin-bottom: 20px; }
+            .highlights-details h1 { font-size: 32px; }
+            .action-buttons { width: 100%; justify-content: flex-start; }
+            .btn { flex: 0 0 auto; }
+            .highlights-table th:first-child, .highlights-table td:first-child { width: 25px; padding-left: 4px; padding-right: 4px; }
+            .highlights-table th:nth-child(2), .highlights-table td:nth-child(2) { min-width: 150px; }
+            .highlight-info { gap: 8px; }
+            .source-icon { width: 32px; height: 32px; }
+            .reorder-mode-banner { padding: 10px 15px; font-size: 13px; }
+            .topic-actions { width: 40px; padding-right: 5px; }
+            .more-options-btn { width: 28px; height: 28px; font-size: 18px; }
+            .material-symbols-outlined { font-size: 18px; }
+        }
+
+        @media (max-width: 576px) {
+            .highlights-details h1 { font-size: 28px; }
+            .highlight-details h4 { font-size: 13px; }
+            .source-chapter-info { font-size: 11px; }
+            .btn { padding: 5px 12px; font-size: 11px; height: 30px; }
+            .timestamp { font-size: 11px; min-width: 50px; }
+            .highlights-icon i.ph { font-size: 55px; }
+            .share-icon-overlay { width: 24px; height: 24px; bottom: 8px; right: 8px; }
+        }
+
+        @media (max-width: 400px) {
+            .highlights-details h1 { font-size: 24px; }
+            .highlights-stats { font-size: 12px; }
+            .action-buttons { gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- tooltip, banner, share overlay, context menu — all same as original -->
+    <div id="customTooltip" class="custom-tooltip"></div>
+    <div id="reorderModeBanner" class="reorder-mode-banner">
+        <span class="material-symbols-outlined">reorder</span>
+        Drag items to reorder highlights
+        <button class="exit-reorder-btn" id="exitReorderBtn">Done</button>
+    </div>
+
+    <!-- SHARE OVERLAY (Highlights collection) -->
+    <div class="share-overlay" id="share-overlay">
+        <div class="share-content">
+            <div class="share-card" id="share-card">
+                <div class="highlights-icon" style="width: 100px; height: 100px; margin: 0 auto 16px;">
+                    <i class="ph ph-highlighter"></i>
+                </div>
+                <div style="font-size: 20px; font-weight: 700; color: #202124; margin-bottom: 8px;">Highlights Collection</div>
+                <div style="font-size: 14px; color: #5F6368; margin-bottom: 16px;" id="share-stats-text"></div>
+                <div style="font-size: 12px; color: #FF9800; background: #FFF3E0; padding: 8px 16px; border-radius: 20px; font-weight: 600;">
+                    Created by User123
+                </div>
+                <div class="share-brand">Highlights Manager</div>
+            </div>
+            <div class="share-sheet">
+                <div class="share-grid">
+                    <div class="share-item" id="share-facebook"><div class="share-icon-circle"><div class="share-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg"></div></div><div class="share-text">Facebook</div></div>
+                    <div class="share-item" id="share-x"><div class="share-icon-circle"><div class="share-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b7/X_logo.jpg"></div></div><div class="share-text">X</div></div>
+                    <div class="share-item" id="share-whatsapp"><div class="share-icon-circle"><div class="share-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"></div></div><div class="share-text">WhatsApp</div></div>
+                    <div class="share-item" id="share-sms"><div class="share-icon-circle"><div class="share-icon"><span class="material-symbols-outlined">sms</span></div></div><div class="share-text">Message</div></div>
+                </div>
+                <div class="bottom-grid">
+                    <div class="bottom-item" id="copy-link"><div class="bottom-icon-circle"><div class="bottom-icon"><span class="material-symbols-outlined">link</span></div></div><div class="share-bottom-text">Copy link</div></div>
+                    <div class="bottom-item" id="more-options-share"><div class="bottom-icon-circle"><div class="bottom-icon"><span class="material-symbols-outlined">more_horiz</span></div></div><div class="share-bottom-text">More</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" data-action="reorder"><span class="material-symbols-outlined">reorder</span> Change order</div>
+        <div class="context-menu-item" data-action="remove"><span class="material-symbols-outlined">delete</span> Remove Highlight</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="chapter"><span class="material-symbols-outlined">auto_stories</span> Go to chapter</div>
+        <div class="context-menu-item" data-action="course"><span class="material-symbols-outlined">school</span> Go to source</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="share"><span class="material-symbols-outlined">share</span> Share highlight</div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <div class="highlights-header">
+            <div class="highlights-icon" id="shareHighlightsIcon">
+                <!-- PHOSPHOR ICON - HIGHILGHTER - NOW WITH FIXED CDN AND CSS RULE -->
+                <i class="ph ph-highlighter"></i>
+                <div class="share-icon-overlay">
+                    <span class="material-symbols-outlined">share</span>
+                </div>
+            </div>
+            <div class="highlights-details">
+                <h1>Highlights</h1>
+                <div class="highlights-stats">
+                    Created by <a href="#" class="user-link" id="userProfileLink">User123</a> • <span id="highlightsCount">4 highlights</span>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="addHighlightsBtn">
+                        <i class="fas fa-plus"></i> Add Highlights
+                    </button>
+                    <button class="btn btn-secondary" id="downloadBtn">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HIGHLIGHTS TABLE – column heading now "Highlighted" (per request) -->
+        <table class="highlights-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Highlighted</th>   <!-- ✅ Changed from "Highlight" to "Highlighted" -->
+                    <th>Date Added</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="highlightsList"></tbody>
+        </table>
+    </div>
+
+    <!-- Add Highlights Modal -->
+    <div class="modal-overlay" id="addHighlightsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Highlights to Collection</h3>
+                <div class="modal-close" id="modalCloseBtn">
+                    <i class="fas fa-times" style="cursor: pointer; font-size: 18px; color: var(--text-medium);"></i>
+                </div>
+            </div>
+            <div class="modal-body" id="availableHighlights"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            "use strict";
+
+            // ----- Source icons mapping (unchanged) -----
+            const sourceIcons = {
+                "G12 Life Sciences": "https://github.com/EnzoFarai/RsLib/raw/main/images/logos/g12-life-sciences.png",
+                "Java Programming": "https://github.com/EnzoFarai/RsLib/raw/main/images/logos/java-programming.png",
+                "Pharmacology-II": "https://github.com/EnzoFarai/RsLib/raw/main/images/logos/pharmacology-ii.png"
+            };
+
+            const PLACEHOLDER_URLS = {
+                highlightPage: "#",
+                userProfile: "#",
+                sourceContents: "#",
+                chapterPage: "#",
+                shareHighlights: "#"
+            };
+
+            // ----- Helper: parse unit/chapter -----
+            function parseUnitAndChapter(str) {
+                const unitMatch = str.match(/Unit\s+(\d+)/i);
+                const chapterMatch = str.match(/Chapter\s+(\d+)/i);
+                return {
+                    unit: unitMatch ? unitMatch[1] : null,
+                    chapter: chapterMatch ? chapterMatch[1] : null,
+                    unitText: unitMatch ? unitMatch[0] : "",
+                    chapterText: chapterMatch ? chapterMatch[0] : ""
+                };
+            }
+
+            // ----- Timestamp -----
+            function formatTimestamp(createdAt) {
+                const now = new Date();
+                const createdDate = new Date(createdAt);
+                const diffMs = now - createdDate;
+                const diffSec = Math.floor(diffMs / 1000);
+                const diffMin = Math.floor(diffSec / 60);
+                const diffHour = Math.floor(diffMin / 60);
+                const diffDay = Math.floor(diffHour / 24);
+                const exactDate = createdDate.toLocaleString('en-US', {
+                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                if (diffSec < 30) return { display: "Just now", exact: exactDate };
+                else if (diffSec < 60) return { display: `${diffSec}s`, exact: exactDate };
+                else if (diffMin < 60) return { display: `${diffMin}m`, exact: exactDate };
+                else if (diffHour < 24) return { display: `${diffHour}h`, exact: exactDate };
+                else if (diffDay < 7) return { display: `${diffDay}d`, exact: exactDate };
+                else {
+                    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                    const month = monthNames[createdDate.getMonth()];
+                    const day = createdDate.getDate();
+                    if (now.getFullYear() === createdDate.getFullYear()) return { display: `${day} ${month}`, exact: exactDate };
+                    else return { display: `${day} ${month} ${createdDate.getFullYear()}`, exact: exactDate };
+                }
+            }
+
+            // ----- HIGHLIGHTS data -----
+            let highlights = [
+                { id: 1, title: "Introduction to Java – key syntax", unitChapter: "Unit 1, Chapter 1", source: "Java Programming", createdAt: new Date(Date.now() - 60000).toISOString(), iconColor: "#ff9a9e" },
+                { id: 2, title: "Parenteral anticoagulants – dosing", unitChapter: "Unit 1, Chapter 2", source: "Pharmacology-II", createdAt: new Date(Date.now() - 172800000).toISOString(), iconColor: "#a18cd1" },
+                { id: 3, title: "Peripheral nervous system – diagram", unitChapter: "Unit 2, Chapter 4", source: "G12 Life Sciences", createdAt: new Date(Date.now() - 259200000).toISOString(), iconColor: "#fbc2eb" },
+                { id: 4, title: "Oral anticoagulants – warfarin", unitChapter: "Unit 1, Chapter 3", source: "Pharmacology-II", createdAt: new Date(Date.now() - 604800000).toISOString(), iconColor: "#a6c1ee" }
+            ];
+
+            const availableHighlightsData = [
+                { id: 5, title: "Java core features – OOP", unitChapter: "Unit 1, Chapter 2", source: "Java Programming", iconColor: "#fad0c4" },
+                { id: 6, title: "Protein synthesis – ribosomes", unitChapter: "Unit 1, Chapter 6", source: "G12 Life Sciences", iconColor: "#ff9a9e" }
+            ];
+
+            // ----- DOM elements -----
+            const highlightsListContainer = document.getElementById('highlightsList');
+            const availableHighlightsContainer = document.getElementById('availableHighlights');
+            const addHighlightsBtn = document.getElementById('addHighlightsBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const addHighlightsModal = document.getElementById('addHighlightsModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+            const highlightsCountSpan = document.getElementById('highlightsCount');
+            const customTooltip = document.getElementById('customTooltip');
+            const contextMenu = document.getElementById('contextMenu');
+            const reorderModeBanner = document.getElementById('reorderModeBanner');
+            const exitReorderBtn = document.getElementById('exitReorderBtn');
+            const userProfileLink = document.getElementById('userProfileLink');
+            const shareHighlightsIcon = document.getElementById('shareHighlightsIcon');
+            const shareOverlay = document.getElementById('share-overlay');
+            const shareStatsText = document.getElementById('share-stats-text');
+
+            // ----- state -----
+            let contextMenuHighlightId = null;
+            let longPressTimer = null;
+            let isReorderMode = false;
+            let timestampUpdateInterval = null;
+            let draggedElement = null, dragStartY = 0;
+
+            // ----- tooltip -----
+            function showTooltip(text, x, y) {
+                customTooltip.textContent = text;
+                customTooltip.style.left = x + 'px';
+                customTooltip.style.top = y + 'px';
+                customTooltip.style.display = 'block';
+                setTimeout(() => { hideTooltip(); }, 3000);
+            }
+            function hideTooltip() { customTooltip.style.display = 'none'; }
+
+            // ----- context menu -----
+            function showContextMenu(x, y, highlightId) {
+                contextMenuHighlightId = highlightId;
+                contextMenu.style.left = x + 'px';
+                contextMenu.style.top = y + 'px';
+                contextMenu.style.display = 'block';
+            }
+            function hideContextMenu() { contextMenu.style.display = 'none'; contextMenuHighlightId = null; }
+
+            function handleContextMenuAction(action) {
+                const h = highlights.find(h => h.id === contextMenuHighlightId);
+                if (!h) return;
+                switch(action) {
+                    case 'reorder': enterReorderMode(); break;
+                    case 'remove': removeHighlight(contextMenuHighlightId); break;
+                    case 'chapter': navigateToChapter(h); break;
+                    case 'course': navigateToSource(h); break;
+                    case 'share': shareHighlight(h); break;
+                }
+                hideContextMenu();
+            }
+
+            // ----- navigation -----
+            function navigateToHighlight(h) { window.location.href = PLACEHOLDER_URLS.highlightPage; console.log("navigate highlight"); }
+            function navigateToSource(h) { window.location.href = PLACEHOLDER_URLS.sourceContents; }
+            function navigateToChapter(h) { const p = parseUnitAndChapter(h.unitChapter); if(p.chapter) window.location.href = PLACEHOLDER_URLS.chapterPage + "?chapter=" + p.chapter; }
+            function navigateToUnit(h) { const p = parseUnitAndChapter(h.unitChapter); if(p.unit) window.location.href = PLACEHOLDER_URLS.sourceContents + "?unit=" + p.unit; }
+            function navigateToUserProfile() { window.location.href = PLACEHOLDER_URLS.userProfile; }
+
+            // ----- share highlight (individual) -----
+            function shareHighlight(h) {
+                if (navigator.share) {
+                    navigator.share({ title: h.title, text: `Highlight: "${h.title}" from ${h.source} — ${h.unitChapter}`, url: PLACEHOLDER_URLS.highlightPage }).catch(()=>{});
+                } else alert(`Share highlight:\n\n“${h.title}”\n${h.unitChapter} • ${h.source}`);
+            }
+
+            // ----- reorder mode -----
+            function enterReorderMode() {
+                isReorderMode = true;
+                document.body.classList.add('reorder-mode');
+                reorderModeBanner.style.display = 'flex';
+                document.querySelectorAll('.more-options-btn .material-symbols-outlined').forEach(icon => { icon.textContent = 'reorder'; });
+                setupDragAndDrop();
+            }
+            function exitReorderMode() {
+                isReorderMode = false;
+                document.body.classList.remove('reorder-mode');
+                reorderModeBanner.style.display = 'none';
+                document.querySelectorAll('.more-options-btn .material-symbols-outlined').forEach(icon => { icon.textContent = 'more_horiz'; });
+                cleanupDragAndDrop();
+            }
+
+            // ----- drag-drop (exact same logic, no sizing changes) -----
+            function setupDragAndDrop() {
+                document.querySelectorAll('.more-options-btn').forEach(btn => {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    newBtn.style.cursor = 'grab';
+                    newBtn.addEventListener('mousedown', startDrag);
+                    newBtn.addEventListener('touchstart', startDrag);
+                });
+            }
+            function cleanupDragAndDrop() {
+                document.querySelectorAll('.more-options-btn').forEach(btn => {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    newBtn.style.cursor = 'pointer';
+                    newBtn.addEventListener('click', function(e) {
+                        if (isReorderMode) return;
+                        e.preventDefault(); e.stopPropagation();
+                        const hid = parseInt(this.getAttribute('data-topic-id'));
+                        const rect = this.getBoundingClientRect();
+                        showContextMenu(rect.left - 200, rect.top + rect.height, hid);
+                    });
+                });
+                if (draggedElement) { draggedElement.classList.remove('dragging'); draggedElement = null; }
+                document.querySelectorAll('.highlights-table tbody tr').forEach(r => r.classList.remove('drag-over'));
+            }
+            function startDrag(e) {
+                if (!isReorderMode) return;
+                e.preventDefault(); e.stopPropagation();
+                const row = e.currentTarget.closest('tr'); if (!row) return;
+                draggedElement = row; draggedElement.classList.add('dragging');
+                dragStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                document.addEventListener('mousemove', handleDragMove);
+                document.addEventListener('touchmove', handleDragMove, { passive: false });
+                document.addEventListener('mouseup', handleDragEnd);
+                document.addEventListener('touchend', handleDragEnd);
+            }
+            function handleDragMove(e) {
+                if (!draggedElement) return; e.preventDefault();
+                let clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                draggedElement.style.transform = `translateY(${clientY - dragStartY}px)`;
+                const rows = Array.from(document.querySelectorAll('.highlights-table tbody tr:not(.dragging)'));
+                rows.forEach(r => r.classList.remove('drag-over'));
+                for (let row of rows) {
+                    const rect = row.getBoundingClientRect();
+                    if (clientY >= rect.top && clientY <= rect.bottom) { row.classList.add('drag-over'); break; }
+                }
+            }
+            function handleDragEnd(e) {
+                if (!draggedElement) return; e.preventDefault();
+                let clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
+                const rows = Array.from(document.querySelectorAll('.highlights-table tbody tr:not(.dragging)'));
+                let targetRow = null;
+                for (let row of rows) {
+                    const rect = row.getBoundingClientRect();
+                    if (clientY >= rect.top && clientY <= rect.bottom) { targetRow = row; break; }
+                }
+                if (targetRow && targetRow !== draggedElement) {
+                    const draggedId = parseInt(draggedElement.getAttribute('data-id'));
+                    const targetId = parseInt(targetRow.getAttribute('data-id'));
+                    const draggedIndex = highlights.findIndex(h => h.id === draggedId);
+                    const targetIndex = highlights.findIndex(h => h.id === targetId);
+                    if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
+                        const [moved] = highlights.splice(draggedIndex, 1);
+                        highlights.splice(targetIndex, 0, moved);
+                        renderHighlights();
+                    }
+                }
+                draggedElement.classList.remove('dragging'); draggedElement.style.transform = ''; draggedElement = null;
+                rows.forEach(r => r.classList.remove('drag-over'));
+                document.removeEventListener('mousemove', handleDragMove);
+                document.removeEventListener('touchmove', handleDragMove);
+                document.removeEventListener('mouseup', handleDragEnd);
+                document.removeEventListener('touchend', handleDragEnd);
+            }
+
+            // ----- render highlights (exact same layout, column heading changed to "Highlighted") -----
+            function renderHighlights() {
+                highlightsListContainer.innerHTML = '';
+                highlights.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-id', item.id);
+                    const parsed = parseUnitAndChapter(item.unitChapter);
+                    const timestamp = formatTimestamp(item.createdAt);
+                    let bgStyle;
+                    if (item.source === "Java Programming") bgStyle = `url(${sourceIcons["Java Programming"]})`;
+                    else if (item.source === "Pharmacology-II") bgStyle = `url(${sourceIcons["Pharmacology-II"]})`;
+                    else if (item.source === "G12 Life Sciences") bgStyle = `url(${sourceIcons["G12 Life Sciences"]})`;
+                    else bgStyle = `linear-gradient(135deg, ${item.iconColor}, #ccc)`;
+
+                    let unitChapterHTML = '';
+                    if (parsed.unitText && parsed.chapterText) {
+                        unitChapterHTML = `<a href="#" class="source-link" data-topic-id="${item.id}" data-unit="${parsed.unit}">${parsed.unitText}</a>, <a href="#" class="chapter-ref-link" data-topic-id="${item.id}" data-chapter="${parsed.chapter}">${parsed.chapterText}</a>`;
+                    } else unitChapterHTML = item.unitChapter;
+
+                    const iconName = isReorderMode ? 'reorder' : 'more_horiz';
+
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>
+                            <div class="highlight-info">
+                                <div class="source-icon" style="background: ${bgStyle}; background-size: cover;" data-source="${item.source}" data-topic-id="${item.id}"></div>
+                                <div class="highlight-details">
+                                    <h4><a href="#" class="highlight-title-link" data-topic-id="${item.id}" data-fulltext="${item.title}">${item.title}</a></h4>
+                                    <div class="source-chapter-info" data-fulltext="${item.unitChapter}">${unitChapterHTML}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="timestamp" data-exact-time="${timestamp.exact}">${timestamp.display}</span></td>
+                        <td class="topic-actions">
+                            <button class="more-options-btn" data-topic-id="${item.id}" title="${isReorderMode ? 'Drag to reorder' : 'More options'}">
+                                <span class="material-symbols-outlined">${iconName}</span>
+                            </button>
+                        </td>
+                    `;
+                    highlightsListContainer.appendChild(row);
+                });
+
+                // attach listeners (same as before)
+                document.querySelectorAll('.highlight-title-link').forEach(link => {
+                    link.addEventListener('click', function(e){ e.preventDefault(); const id = parseInt(this.getAttribute('data-topic-id')); const h = highlights.find(h=>h.id===id); if(h) navigateToHighlight(h); });
+                });
+                document.querySelectorAll('.source-link').forEach(link => {
+                    link.addEventListener('click', function(e){ e.preventDefault(); const id = parseInt(this.getAttribute('data-topic-id')); const h = highlights.find(h=>h.id===id); if(h) navigateToUnit(h); });
+                });
+                document.querySelectorAll('.chapter-ref-link').forEach(link => {
+                    link.addEventListener('click', function(e){ e.preventDefault(); const id = parseInt(this.getAttribute('data-topic-id')); const h = highlights.find(h=>h.id===id); if(h) navigateToChapter(h); });
+                });
+                document.querySelectorAll('.source-icon').forEach(icon => {
+                    icon.addEventListener('mouseenter', function(){ this.classList.add('show-tooltip'); });
+                    icon.addEventListener('mouseleave', function(){ this.classList.remove('show-tooltip'); });
+                    icon.addEventListener('touchstart', (e) => { longPressTimer = setTimeout(() => { icon.classList.add('show-tooltip'); }, 500); });
+                    icon.addEventListener('touchend', (e) => { clearTimeout(longPressTimer); setTimeout(() => icon.classList.remove('show-tooltip'), 2000); });
+                    icon.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+                });
+
+                document.querySelectorAll('.more-options-btn').forEach(btn => {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    newBtn.addEventListener('click', function(e) {
+                        if (isReorderMode) return;
+                        e.preventDefault(); e.stopPropagation();
+                        const hid = parseInt(this.getAttribute('data-topic-id'));
+                        const rect = this.getBoundingClientRect();
+                        showContextMenu(rect.left - 200, rect.top + rect.height, hid);
+                    });
+                });
+                if (isReorderMode) setupDragAndDrop();
+                updateHighlightsStats();
+                applyMiddleEllipsis();
+            }
+
+            // truncation (no sizing changes)
+            function truncateWithMiddleEllipsis(text, maxLength = 30) {
+                if (text.length <= maxLength || window.innerWidth > 768) return text;
+                const start = text.substring(0, Math.floor(maxLength / 2) - 2);
+                const end = text.substring(text.length - Math.floor(maxLength / 2) + 2);
+                return start + '...' + end;
+            }
+            function applyMiddleEllipsis() {
+                if (window.innerWidth <= 768) {
+                    document.querySelectorAll('.highlight-title-link').forEach(el => {
+                        const full = el.getAttribute('data-fulltext');
+                        if (full && full.length > 30) { el.textContent = truncateWithMiddleEllipsis(full, 30); el.classList.add('truncated-text'); }
+                    });
+                }
+            }
+
+            function updateHighlightsStats() {
+                highlightsCountSpan.textContent = `${highlights.length} highlight${highlights.length !==1 ? 's' : ''}`;
+            }
+
+            // ----- add / remove highlights -----
+            function addHighlightToCollection(id) {
+                const toAdd = availableHighlightsData.find(h => h.id === id);
+                if (toAdd) {
+                    const newH = { ...toAdd, createdAt: new Date().toISOString() };
+                    highlights.unshift(newH);
+                    renderHighlights();
+                }
+            }
+            function removeHighlight(id) {
+                const idx = highlights.findIndex(h => h.id === id);
+                if (idx !== -1) { highlights.splice(idx, 1); renderHighlights(); renderAvailableHighlights(); }
+            }
+
+            // ----- render available highlights (modal) -----
+            function renderAvailableHighlights() {
+                if (!availableHighlightsContainer) return;
+                availableHighlightsContainer.innerHTML = '';
+                availableHighlightsData.forEach(topic => {
+                    const exists = highlights.some(h => h.id === topic.id);
+                    let bg;
+                    if (topic.source === "Java Programming") bg = `url(${sourceIcons["Java Programming"]})`;
+                    else if (topic.source === "Pharmacology-II") bg = `url(${sourceIcons["Pharmacology-II"]})`;
+                    else if (topic.source === "G12 Life Sciences") bg = `url(${sourceIcons["G12 Life Sciences"]})`;
+                    else bg = `linear-gradient(135deg, ${topic.iconColor}, #ccc)`;
+
+                    const div = document.createElement('div');
+                    div.className = 'highlight-list-item';
+                    div.innerHTML = `
+                        <div class="source-icon" style="background: ${bg}; background-size: cover;" data-source="${topic.source}"></div>
+                        <div class="highlight-details">
+                            <h4 data-fulltext="${topic.title}">${topic.title}</h4>
+                            <p data-fulltext="${topic.unitChapter} • ${topic.source}">${topic.unitChapter} • ${topic.source}</p>
+                        </div>
+                        <button class="btn-add ${exists ? 'btn-added' : ''}" data-id="${topic.id}" ${exists ? 'disabled' : ''}>
+                            ${exists ? '<i class="fas fa-check"></i> Added' : '<i class="fas fa-plus"></i> Add'}
+                        </button>
+                    `;
+                    availableHighlightsContainer.appendChild(div);
+                });
+                document.querySelectorAll('.btn-add:not(.btn-added)').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const tid = parseInt(this.getAttribute('data-id'));
+                        addHighlightToCollection(tid);
+                        this.classList.add('btn-added');
+                        this.innerHTML = '<i class="fas fa-check"></i> Added';
+                        this.disabled = true;
+                    });
+                });
+                if (window.innerWidth <= 768) {
+                    document.querySelectorAll('.highlight-list-item h4, .highlight-list-item p').forEach(el => {
+                        const full = el.getAttribute('data-fulltext');
+                        if (full && full.length > 30) el.textContent = truncateWithMiddleEllipsis(full, 30);
+                    });
+                }
+            }
+
+            // ----- download highlights -----
+            function downloadHighlights() {
+                const data = { name: "Highlights", createdBy: "User123", count: highlights.length, highlights: highlights.map(h => ({ title: h.title, unitChapter: h.unitChapter, source: h.source, dateAdded: h.createdAt })) };
+                const dataStr = JSON.stringify(data, null, 2);
+                const a = document.createElement('a');
+                a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                a.download = 'highlights.json';
+                a.click();
+                alert('Highlights downloaded as JSON.');
+            }
+
+            // ----- share collection -----
+            function getHighlightsShareText() {
+                const count = highlights.length;
+                const sources = [...new Set(highlights.map(h => h.source))];
+                let text = `Check out my highlights collection!\n\n✏️ I have ${count} highlighted passages across ${sources.length} sources:\n\n`;
+                highlights.slice(0, 3).forEach((h,i) => text += `• "${h.title}" (${h.source})\n`);
+                if (count > 3) text += `• ... and ${count - 3} more highlights\n`;
+                text += `\nMy learning journey, highlighted.`;
+                return text;
+            }
+            function showShareOverlay() {
+                const srcCount = [...new Set(highlights.map(h => h.source))].length;
+                shareStatsText.textContent = `${highlights.length} highlights • ${srcCount} sources`;
+                shareOverlay.style.display = 'flex';
+            }
+            function hideShareOverlay() { shareOverlay.style.display = 'none'; }
+            function copyToClipboardWithAlert(text) {
+                if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => alert('Copied! Share your highlights.')).catch(() => fallbackCopy(text));
+                else fallbackCopy(text);
+            }
+            function fallbackCopy(text) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('Copied to clipboard!'); }
+            async function triggerNativeShareSheet() {
+                const shareText = getHighlightsShareText();
+                if (navigator.share) { try { await navigator.share({ title: 'My Highlights Collection', text: shareText, url: PLACEHOLDER_URLS.shareHighlights }); } catch(e) { if (e.name !== 'AbortError') copyToClipboardWithAlert(shareText); } }
+                else copyToClipboardWithAlert(shareText);
+            }
+
+            // ----- EVENT LISTENERS -----
+            addHighlightsBtn.addEventListener('click', () => { renderAvailableHighlights(); addHighlightsModal.style.display = 'flex'; });
+            closeModalBtn.addEventListener('click', () => addHighlightsModal.style.display = 'none');
+            modalCloseBtn.addEventListener('click', () => addHighlightsModal.style.display = 'none');
+            downloadBtn.addEventListener('click', downloadHighlights);
+            exitReorderBtn.addEventListener('click', exitReorderMode);
+            userProfileLink.addEventListener('click', (e) => { e.preventDefault(); navigateToUserProfile(); });
+            shareHighlightsIcon.addEventListener('click', (e) => { e.stopPropagation(); showShareOverlay(); });
+
+            document.getElementById('share-facebook').addEventListener('click', ()=>{ window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(PLACEHOLDER_URLS.shareHighlights)}&quote=${encodeURIComponent(getHighlightsShareText())}&hashtag=%23Highlights`, 'fb', 'width=626,height=436'); hideShareOverlay(); });
+            document.getElementById('share-x').addEventListener('click', ()=>{ window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getHighlightsShareText())}`, 'tw', 'width=550,height=420'); hideShareOverlay(); });
+            document.getElementById('share-whatsapp').addEventListener('click', ()=>{ window.open(`https://wa.me/?text=${encodeURIComponent(getHighlightsShareText())}`, 'wa', 'width=600,height=600'); hideShareOverlay(); });
+            document.getElementById('share-sms').addEventListener('click', ()=>{ const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); if(isMobile) window.location.href = `sms:?body=${encodeURIComponent(getHighlightsShareText())}`; else copyToClipboardWithAlert(getHighlightsShareText()); hideShareOverlay(); });
+            document.getElementById('copy-link').addEventListener('click', ()=>{ copyToClipboardWithAlert(getHighlightsShareText()); hideShareOverlay(); });
+            document.getElementById('more-options-share').addEventListener('click', async ()=>{ await triggerNativeShareSheet(); hideShareOverlay(); });
+
+            document.querySelectorAll('.context-menu-item').forEach(item => {
+                item.addEventListener('click', function() { handleContextMenuAction(this.getAttribute('data-action')); });
+            });
+            window.addEventListener('click', (e) => { if (!contextMenu.contains(e.target) && !e.target.classList.contains('more-options-btn')) hideContextMenu(); if (shareOverlay.style.display === 'flex' && e.target === shareOverlay) hideShareOverlay(); });
+
+            window.addEventListener('resize', () => renderHighlights());
+            timestampUpdateInterval = setInterval(() => {
+                document.querySelectorAll('.timestamp').forEach(el => {
+                    const row = el.closest('tr'); if (!row) return;
+                    const id = parseInt(row.getAttribute('data-id'));
+                    const h = highlights.find(h => h.id === id);
+                    if (h) { const ts = formatTimestamp(h.createdAt); el.textContent = ts.display; el.setAttribute('data-exact-time', ts.exact); }
+                });
+            }, 30000);
+
+            // INIT
+            renderHighlights();
+            updateHighlightsStats();
+        })();
+    </script>
+</body>
+</html>

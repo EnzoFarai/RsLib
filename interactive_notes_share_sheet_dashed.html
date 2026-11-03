@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>External Fertilisation - Interactive Notes</title>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --google-blue: #4285F4;
+            --content-font: "Atkinson Hyperlegible Next", Arial, sans-serif;
+            --carpenter-blue: #4285F4;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            background: #f8f9fa;
+            font-family: var(--content-font);
+            -webkit-font-smoothing: antialiased;
+            color: #333;
+        }
+
+        /* Reading Content */
+        main {
+            padding: 40px 20px;
+            max-width: 800px;
+            margin: 0 auto 150px;
+            line-height: 1.8;
+            font-size: 18px;
+        }
+
+        h1 { font-size: 2.2rem; margin-bottom: 24px; color: #1a1a1a; font-weight: 800; }
+        h2 { font-size: 1.5rem; margin: 32px 0 16px; color: #222; font-weight: 700; }
+        p { margin-bottom: 20px; color: #444; }
+
+        /* --- SELECTION TOOLBAR --- */
+        .selection-toolbar {
+            position: fixed;
+            z-index: 9999;
+            padding: 8px;
+            border-radius: 12px;
+            display: flex;
+            gap: 4px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .15s, transform .15s;
+            border: 1px solid #e0e0e0;
+            transform: translateY(10px);
+        }
+
+        .selection-toolbar.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .selection-toolbar button {
+            background: transparent;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transition: background-color 0.2s;
+            color: #333;
+            min-width: 60px;
+        }
+
+        .selection-toolbar button:hover { background: #f0f0f0; }
+        .selection-toolbar button i { font-size: 20px; }
+        .selection-toolbar button span { font-size: 11px; font-weight: 600; }
+
+        /* Highlighter Icon */
+        .highlighter-icon-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .highlighter-icon-container::before {
+            content: "";
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: conic-gradient(
+                from 0deg, 
+                #FBBC05 0deg 60deg,   /* Bee */
+                #34A853 60deg 120deg, /* Boa */
+                #1CB0F6 120deg 180deg,/* Gecko */
+                #EA4335 180deg 240deg,/* Ladybug */
+                #FF6D01 240deg 300deg,/* Tiger */
+                #AA00FF 300deg 360deg /* Beetle */
+            );
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+
+        /* Color Picker */
+        .color-picker {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+            width: 160px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border: 1px solid #e0e0e0;
+            justify-content: center;
+        }
+        .color-picker.show { display: flex; }
+        
+        .color-option {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+        .color-option:hover { transform: scale(1.1); border-color: #333; }
+        
+        .color-option.bee { background-color: #FBBC05; }
+        .color-option.boa { background-color: #34A853; }
+        .color-option.gecko { background-color: #1CB0F6; }
+        .color-option.ladybug { background-color: #EA4335; }
+        .color-option.tiger { background-color: #FF6D01; }
+        .color-option.beetle { background-color: #AA00FF; }
+
+        /* Highlight Classes */
+        .highlighted-bee { background-color: #FBBC05; }
+        .highlighted-boa { background-color: #34A853; }
+        .highlighted-gecko { background-color: #1CB0F6; }
+        .highlighted-ladybug { background-color: #EA4335; }
+        .highlighted-tiger { background-color: #FF6D01; }
+        .highlighted-beetle { background-color: #AA00FF; }
+
+        /* --- THE FOLDER NOTE UI --- */
+        .folder-wrapper {
+            position: absolute;
+            display: none;
+            z-index: 1001;
+            width: 340px;
+            margin-top: 32px;
+            filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.12));
+            max-width: calc(100vw - 40px);
+        }
+
+        .folder-body {
+            background-color: #ffffff;
+            position: relative;
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+            border-bottom-left-radius: 14px;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 1;
+        }
+
+        /* One continuous folder silhouette: no internal vertical seam or triangle bleed. */
+        .folder-tab {
+            position: absolute;
+            left: -1px;
+            bottom: 100%;
+            height: 32px;
+            width: 45%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 16px;
+            color: #1e293b;
+            font-size: .85rem;
+            font-weight: 600;
+            isolation: isolate;
+            z-index: 2;
+        }
+        .folder-tab::before {
+            content: '';
+            position: absolute;
+            inset: 0 -18px 0 0;
+            z-index: -1;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 172 32' preserveAspectRatio='none'%3E%3Cpath d='M0.5 32 V14 Q0.5 0.5 14 0.5 H154 L171.5 31.5 Z' fill='white' stroke='%23e2e8f0' stroke-width='1'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+        }
+        .folder-tab::after { content: none; }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--carpenter-blue);
+            border-radius: 50%;
+        }
+
+        .folder-body textarea {
+            width: 100%;
+            min-height: 100px;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: #475569;
+            padding: 0;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .folder-body textarea::placeholder { color: #94a3b8; }
+
+        .folder-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .footer-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover { color: #1e293b; background: #f1f5f9; }
+        .action-btn.save-btn { color: var(--google-blue); font-size: 1.4rem; }
+        .action-btn.save-btn:hover { background: #eff6ff; }
+        .action-btn.trash-btn:hover { color: #ef4444; background: #fef2f2; }
+
+        /* --- NOTE UNDERLINE & ASTERISK --- */
+        .note-mark {
+            position: relative;
+            cursor: pointer;
+            display: inline;
+            /* A medium-weight dashed line signifies a note. Text decoration is painted
+               over nested highlight backgrounds regardless of annotation order. */
+            text-decoration-line: underline;
+            text-decoration-style: dashed;
+            text-decoration-color: var(--carpenter-blue);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
+            text-decoration-skip-ink: none;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+        }
+
+        /* A real Phosphor icon is an inline superscript *before* the annotated word.
+           It takes up horizontal room rather than floating on top of the letters. */
+        .note-mark.is-start > .note-asterisk {
+            display: inline-block;
+            font-size: .68em;
+            line-height: 1;
+            vertical-align: super;
+            margin-right: .13em;
+            color: var(--carpenter-blue);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* The quoted source sits above the user's own note, like a chat reply. */
+        .note-source {
+            display: none;
+            margin: 1px 0 15px;
+            padding: 0 0 0 10px;
+            border-left: 3px solid #cbd5e1;
+            color: #8795a7;
+            font-size: .79rem;
+            line-height: 1.45;
+            font-weight: 400;
+        }
+        .note-source.show { display: block; }
+        .note-source-text { overflow-wrap: anywhere; white-space: pre-wrap; }
+        .note-source:not(.expanded) .note-source-text {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+        }
+        .source-toggle {
+            display: none;
+            border: 0;
+            background: none;
+            color: #4285F4;
+            font-size: .78rem;
+            font-weight: 600;
+            font-family: inherit;
+            margin-top: 5px;
+            padding: 1px 0;
+            cursor: pointer;
+        }
+        .source-toggle.show { display: inline; }
+        .note-overlap-nav {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 0 12px;
+            font-size: .78rem;
+            color: #64748b;
+        }
+        .note-overlap-nav.show { display: flex; }
+        .note-overlap-nav button {
+            background: transparent;
+            border: 0;
+            color: #4285F4;
+            padding: 3px 6px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 1.1rem;
+        }
+        .note-overlap-nav button:focus-visible,
+        .source-toggle:focus-visible { outline: 2px solid #4285F4; }
+        /* Underline precedence is handled by .note-mark for all highlight colors. */
+
+        /* Non-blocking acknowledgement used by Copy, Share, and their fallbacks. */
+        .action-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 10px);
+            max-width: calc(100vw - 32px);
+            background: #323232;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 18px rgba(0,0,0,.22);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10002;
+            font: 500 14px var(--content-font);
+            transition: opacity .2s, transform .2s;
+        }
+        .action-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+
+        /* Share alternatives appear only if the browser cannot open its native share sheet.
+           Clicking Share never silently triggers a clipboard permission request. */
+        .share-fallback {
+            border: 1px solid #e1e5ec;
+            border-radius: 16px;
+            background: #fff;
+            color: #202936;
+            padding: 24px;
+            width: min(410px, calc(100vw - 28px));
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            box-shadow: 0 18px 60px rgba(0,0,0,.23);
+            margin: auto;
+            font-family: var(--content-font);
+        }
+        .share-fallback::backdrop { background: rgba(17,24,39,.42); }
+        .share-fallback-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+        .share-fallback h2 { margin: 0 0 4px; font-size: 1.17rem; }
+        .share-close { background: none; border: 0; cursor: pointer; color: #5b6777; padding: 5px; font-size: 20px; }
+        .share-explanation { margin: 7px 0 14px; color: #64748b; font-size: .82rem; line-height: 1.5; }
+        .share-excerpt { padding: 11px 13px; border: 1px solid #dfe8f5; border-left: 3px solid var(--google-blue); border-radius: 8px; background: #f8fbff; color: #455167; font-size: .8rem; line-height: 1.5; max-height: 92px; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-wrap; margin-bottom: 16px; }
+        .share-choices { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+        .share-choices a, .share-choices button { min-height: 48px; border: 1px solid #dee4ed; background: #fff; border-radius: 10px; font: 600 .83rem var(--content-font); color: #223047; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; }
+        .share-choices a:hover, .share-choices button:hover { background: #edf4ff; border-color: #accdff; }
+        .share-choices .ph { font-size: 19px; color: var(--google-blue); }
+        .share-choices :focus-visible, .share-close:focus-visible { outline: 3px solid #4285f4; outline-offset: 2px; }
+
+        ::selection { background: rgba(66, 133, 244, 0.2); }
+    </style>
+</head>
+<body>
+
+    <main id="articleContent">
+        <h1>External Fertilisation</h1>
+        <p>External fertilisation is a biological process where the sperm fertilises the egg outside the body of the female, usually in water. This method is common among aquatic animals, such as fish, amphibians, and some invertebrates.</p>
+        
+        <h2>The Process</h2>
+        <p>In this process, the female releases her eggs into the surrounding environment, and the male releases his sperm over them. The water acts as a medium for the sperm to swim to the eggs and fuse with them.</p>
+        
+        <h2>Environmental Requirements</h2>
+        <p>Because the gametes are released into the open environment, water is absolutely essential. It prevents the eggs and sperm from drying out and provides a fluid medium that allows the sperm to swim actively toward the eggs. Without water, external fertilisation cannot occur.</p>
+        
+        <h2>Advantages and Disadvantages</h2>
+        <p>External fertilisation typically involves the production of a very large number of gametes to increase the chances of successful fertilisation, as many eggs and sperm are lost to predators or environmental factors. However, it requires less energy for mating and parental care compared to internal fertilisation.</p>
+    </main>
+
+    <!-- Selection Toolbar -->
+    <div class="selection-toolbar" id="selectionToolbar">
+        <button id="highlightBtn">
+            <div class="highlighter-icon-container">
+                <i class="ph ph-highlighter"></i>
+            </div>
+            <span>Highlight</span>
+        </button>
+        
+        <div class="color-picker" id="colorPicker"></div>
+        
+        <button id="noteBtn">
+            <i class="ph ph-note-pencil"></i>
+            <span>Note</span>
+        </button>
+        <button id="copyBtn">
+            <i class="ph ph-copy"></i>
+            <span>Copy</span>
+        </button>
+        <button id="shareBtn">
+            <i class="ph-fill ph-share-network"></i>
+            <span>Share</span>
+        </button>
+    </div>
+
+    <div id="actionToast" class="action-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+
+    <!-- Only shown when navigator.share is unsupported or cannot launch. -->
+    <dialog id="shareFallback" class="share-fallback" aria-labelledby="shareFallbackTitle" aria-describedby="shareFallbackExplanation">
+        <div class="share-fallback-header">
+            <h2 id="shareFallbackTitle">Share this excerpt</h2>
+            <button id="closeShareFallback" class="share-close" type="button" aria-label="Close sharing options"><i class="ph ph-x"></i></button>
+        </div>
+        <p class="share-explanation" id="shareFallbackExplanation">Your browser can't open the device share sheet for this page. Choose an option below.</p>
+        <div id="shareExcerpt" class="share-excerpt"></div>
+        <div class="share-choices">
+            <a id="shareWhatsApp" target="_blank" rel="noopener noreferrer"><i class="ph ph-whatsapp-logo"></i>WhatsApp</a>
+            <a id="shareTelegram" target="_blank" rel="noopener noreferrer"><i class="ph ph-telegram-logo"></i>Telegram</a>
+            <a id="shareEmail"><i class="ph ph-envelope"></i>Email</a>
+            <button id="copyShareExcerpt" type="button"><i class="ph ph-copy"></i>Copy excerpt</button>
+        </div>
+    </dialog>
+
+    <!-- The Folder Note UI -->
+    <div class="folder-wrapper" id="noteCard">
+        <div class="folder-tab">
+            <span class="status-dot"></span>
+            Note
+        </div>
+        <div class="folder-body">
+            <div id="noteSource" class="note-source" aria-label="Original selected text">
+                <div id="noteSourceText" class="note-source-text"></div>
+                <button id="sourceToggle" class="source-toggle" type="button" aria-expanded="false">Read More</button>
+            </div>
+            <textarea id="noteContent" placeholder="Type your note here..."></textarea>
+            <div class="note-overlap-nav" id="noteOverlapNav" aria-label="Overlapping notes">
+                <button type="button" id="previousNoteBtn" title="Previous note" aria-label="Previous note"><i class="ph ph-caret-left"></i></button>
+                <span id="noteOverlapPosition" aria-live="polite"></span>
+                <button type="button" id="nextNoteBtn" title="Next note" aria-label="Next note"><i class="ph ph-caret-right"></i></button>
+            </div>
+            <div class="folder-footer">
+                <div class="footer-actions">
+                    <button class="action-btn trash-btn" id="deleteNoteBtn" title="Delete Note"><i class="ph ph-trash"></i></button>
+                    <button class="action-btn" id="undoNoteBtn" title="Undo Changes" style="display: none;"><i class="ph ph-arrow-u-up-left"></i></button>
+                </div>
+                <span id="noteDate"></span>
+                <button class="action-btn save-btn" id="saveNoteBtn" title="Save Note"><i class="ph ph-plus-circle"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const articleContent = document.getElementById('articleContent');
+        const selectionToolbar = document.getElementById('selectionToolbar');
+        const highlightBtn = document.getElementById('highlightBtn');
+        const colorPicker = document.getElementById('colorPicker');
+        const noteBtn = document.getElementById('noteBtn');
+        
+        const noteCard = document.getElementById('noteCard');
+        const noteContent = document.getElementById('noteContent');
+        const noteDate = document.getElementById('noteDate');
+        const deleteNoteBtn = document.getElementById('deleteNoteBtn');
+        const undoNoteBtn = document.getElementById('undoNoteBtn');
+        const saveNoteBtn = document.getElementById('saveNoteBtn');
+
+        let currentSelectionRange = null;
+        let activeNoteGroupId = null;
+        let originalNoteText = "";
+        let highlightColorPickerVisible = false;
+        let overlappingNoteIds = [];
+        let overlappingNoteIndex = 0;
+
+        const noteSource = document.getElementById('noteSource');
+        const noteSourceText = document.getElementById('noteSourceText');
+        const sourceToggle = document.getElementById('sourceToggle');
+        const noteOverlapNav = document.getElementById('noteOverlapNav');
+        const noteOverlapPosition = document.getElementById('noteOverlapPosition');
+
+        // --- Dynamic Colour Picker Logic ---
+        const colorNames = ['bee', 'boa', 'gecko', 'ladybug', 'tiger', 'beetle'];
+        let mruColor = localStorage.getItem('mruHighlightColor') || 'bee'; 
+
+        function renderColorPicker() {
+            colorPicker.innerHTML = ''; 
+            
+            const sortedColors = [...colorNames].sort((a, b) => {
+                if (a === mruColor) return -1;
+                if (b === mruColor) return 1;
+                return 0;
+            });
+
+            sortedColors.forEach(color => {
+                const div = document.createElement('div');
+                div.className = `color-option ${color}`;
+                div.title = color.charAt(0).toUpperCase() + color.slice(1); 
+                div.onclick = () => window.highlightSelection(color);
+                colorPicker.appendChild(div);
+            });
+        }
+        renderColorPicker();
+
+        // Dynamic Date
+        function getFormattedDate() {
+            const now = new Date();
+            const day = now.getDate();
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const month = monthNames[now.getMonth()];
+            let suffix = 'th';
+            if (day === 1 || day === 21 || day === 31) suffix = 'st';
+            else if (day === 2 || day === 22) suffix = 'nd';
+            else if (day === 3 || day === 23) suffix = 'rd';
+            return `${day}${suffix} ${month}`;
+        }
+        noteDate.textContent = getFormattedDate();
+
+        // --- DOM-safe selection helpers ---
+        // The normal Range is live and changes as DOM nodes are split. Work on
+        // clones and collect precise text boundaries before modifying anything.
+        const isWordCharacter = c => c !== undefined && /[\p{L}\p{N}\p{M}_]/u.test(c);
+        const isWhitespace = c => c !== undefined && /\s/u.test(c);
+        const isText = node => node && node.nodeType === Node.TEXT_NODE;
+
+        function adjacentTextNode(node, direction) {
+            const block = node.parentElement?.closest('p,h1,h2,h3,h4,h5,h6,li,blockquote');
+            if (!block) return null;
+            const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+            let previous = null, current;
+            while ((current = walker.nextNode())) {
+                if (current === node) {
+                    if (direction < 0) return previous;
+                    return walker.nextNode();
+                }
+                previous = current;
+            }
+            return null;
+        }
+
+        // Continue across nested inline spans, but never jump across paragraphs.
+        function expandRangeToWordBoundaries(inputRange) {
+            const range = inputRange.cloneRange();
+            if (isText(range.startContainer)) {
+                let node = range.startContainer;
+                let pos = range.startOffset;
+                while (true) {
+                    if (pos > 0 && isWordCharacter(node.data[pos - 1])) { pos--; continue; }
+                    if (pos === 0) {
+                        const previous = adjacentTextNode(node, -1);
+                        if (previous && isWordCharacter(previous.data.at(-1))) {
+                            node = previous; pos = node.length; continue;
+                        }
+                    }
+                    break;
+                }
+                range.setStart(node, pos);
+            }
+            if (isText(range.endContainer)) {
+                let node = range.endContainer;
+                let pos = range.endOffset;
+                while (true) {
+                    if (pos < node.length && isWordCharacter(node.data[pos])) { pos++; continue; }
+                    if (pos === node.length) {
+                        const next = adjacentTextNode(node, 1);
+                        if (next && isWordCharacter(next.data[0])) {
+                            node = next; pos = 0; continue;
+                        }
+                    }
+                    break;
+                }
+                range.setEnd(node, pos);
+            }
+            return range;
+        }
+
+        function selectedTextSegments(range) {
+            if (!range || range.collapsed) return [];
+            const selected = [];
+            const walker = document.createTreeWalker(articleContent, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+                if (!node.length || !range.intersectsNode(node)) continue;
+                // Native intersectsNode handles ranges over separate blocks;
+                // per-node start/end offsets below discard zero-length edges.
+                let start = node === range.startContainer ? range.startOffset : 0;
+                let end = node === range.endContainer ? range.endOffset : node.length;
+                while (start < end && isWhitespace(node.data[start])) start++;
+                while (end > start && isWhitespace(node.data[end-1])) end--;
+                if (end > start) selected.push({ node, start, end });
+            }
+            return selected;
+        }
+
+        function wrapRange(inputRange, className, dataAttributes = {}) {
+            const segments = selectedTextSegments(inputRange);
+            const wrappers = [];
+            for (let i = segments.length - 1; i >= 0; i--) {
+                const {node, start, end} = segments[i];
+                let target = node;
+                if (start) target = node.splitText(start);
+                if (end - start < target.length) target.splitText(end - start);
+                const span = document.createElement('span');
+                span.className = className;
+                for (const [key, value] of Object.entries(dataAttributes)) span.dataset[key] = value;
+                target.parentNode.insertBefore(span, target);
+                span.appendChild(target);
+                wrappers.unshift(span);
+            }
+            // Exactly one Phosphor asterisk per note group, before its first word.
+            if (wrappers.length && className === 'note-mark') {
+                wrappers[0].classList.add('is-start');
+                const icon = document.createElement('i');
+                icon.className = 'ph ph-asterisk note-asterisk';
+                icon.setAttribute('aria-hidden', 'true');
+                wrappers[0].prepend(icon);
+            }
+            return wrappers;
+        }
+
+        function getNoteSpans(id) {
+            return [...articleContent.querySelectorAll('.note-mark')].filter(s => s.dataset.noteGroup === id);
+        }
+
+        function updateOverlapNavigation() {
+            const many = overlappingNoteIds.length > 1;
+            noteOverlapNav.classList.toggle('show', many);
+            noteOverlapPosition.textContent = many ? `Note ${overlappingNoteIndex + 1} of ${overlappingNoteIds.length}` : '';
+        }
+
+        function showOriginalText(quote) {
+            noteSourceText.textContent = quote || '';
+            noteSource.classList.toggle('show', !!quote);
+            noteSource.classList.remove('expanded');
+            sourceToggle.textContent = 'Read More';
+            sourceToggle.setAttribute('aria-expanded', 'false');
+            // Measure only after the card becomes visible.
+            requestAnimationFrame(() => {
+                const clipped = noteSourceText.scrollHeight > noteSourceText.clientHeight + 2;
+                sourceToggle.classList.toggle('show', Boolean(quote) && clipped);
+            });
+        }
+        sourceToggle.addEventListener('click', () => {
+            const expanded = noteSource.classList.toggle('expanded');
+            sourceToggle.textContent = expanded ? 'Read Less' : 'Read More';
+            sourceToggle.setAttribute('aria-expanded', String(expanded));
+        });
+
+        function openNoteGroup(groupId, quoteOverride = null) {
+            const spans = getNoteSpans(groupId);
+            if (!spans.length) return;
+            activeNoteGroupId = groupId;
+            originalNoteText = spans[0].dataset.noteContent || '';
+            noteContent.value = originalNoteText;
+            saveNoteBtn.innerHTML = '<i class="ph ph-plus-circle"></i>';
+            undoNoteBtn.style.display = 'none';
+            showOriginalText(quoteOverride ?? spans[0].dataset.noteQuote ?? '');
+            updateOverlapNavigation();
+        }
+
+        function switchOverlappingNote(step) {
+            if (overlappingNoteIds.length < 2) return;
+            if (activeNoteGroupId && noteContent.value.trim() !== originalNoteText) saveCurrentNote();
+            if (!overlappingNoteIds.length) return;
+            overlappingNoteIndex = (overlappingNoteIndex + step + overlappingNoteIds.length) % overlappingNoteIds.length;
+            openNoteGroup(overlappingNoteIds[overlappingNoteIndex]);
+        }
+        document.getElementById('previousNoteBtn').addEventListener('click', () => switchOverlappingNote(-1));
+        document.getElementById('nextNoteBtn').addEventListener('click', () => switchOverlappingNote(1));
+
+        // --- 1. Handle Text Selection ---
+        document.addEventListener('mouseup', (e) => {
+            setTimeout(() => {
+                const selection = window.getSelection();
+                const selectedText = selection.toString().trim();
+
+                if (selectedText.length > 0 && articleContent.contains(selection.anchorNode)) {
+                    if (noteCard.contains(e.target)) return;
+
+                    currentSelectionRange = selection.getRangeAt(0).cloneRange();
+                    showToolbar(currentSelectionRange.getBoundingClientRect());
+                } else if (!e.target.closest('#selectionToolbar')) {
+                    hideToolbar();
+                }
+            }, 10);
+        });
+
+        window.addEventListener('scroll', hideToolbar);
+
+        function showToolbar(rect) {
+            selectionToolbar.classList.add('show');
+            let top = rect.top - selectionToolbar.offsetHeight - 10;
+            let left = rect.left + (rect.width / 2) - (selectionToolbar.offsetWidth / 2);
+            if (top < 10) top = rect.bottom + 10;
+            if (left < 10) left = 10;
+            if (left + selectionToolbar.offsetWidth > window.innerWidth) {
+                left = window.innerWidth - selectionToolbar.offsetWidth - 10;
+            }
+
+            selectionToolbar.style.top = `${top}px`;
+            selectionToolbar.style.left = `${left}px`;
+        }
+
+        function hideToolbar() {
+            selectionToolbar.classList.remove('show');
+            colorPicker.classList.remove('show');
+            highlightColorPickerVisible = false;
+        }
+
+        selectionToolbar.addEventListener('mousedown', (e) => e.preventDefault());
+
+        // --- 2. Highlight Logic ---
+        highlightBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            renderColorPicker();
+            colorPicker.classList.toggle('show');
+            highlightColorPickerVisible = colorPicker.classList.contains('show');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (highlightColorPickerVisible && !colorPicker.contains(e.target) && !highlightBtn.contains(e.target)) {
+                colorPicker.classList.remove('show');
+                highlightColorPickerVisible = false;
+            }
+        });
+
+        window.highlightSelection = function(color) {
+            if (!currentSelectionRange) return;
+            
+            localStorage.setItem('mruHighlightColor', color);
+            mruColor = color;
+            renderColorPicker(); 
+            
+            wrapRange(expandRangeToWordBoundaries(currentSelectionRange), `highlighted-${color}`);
+            
+            window.getSelection().removeAllRanges();
+            hideToolbar();
+        };
+
+        // --- 3. Create note, including ranges overlapping earlier annotations ---
+        noteBtn.addEventListener('click', () => {
+            if (!currentSelectionRange) return;
+            const selectedRange = expandRangeToWordBoundaries(currentSelectionRange);
+            const quotedText = selectedRange.toString().trim();
+            const groupId = 'note-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+            const spans = wrapRange(selectedRange, 'note-mark', { noteGroup: groupId, noteQuote: quotedText });
+            if (!spans.length) return;
+            window.getSelection().removeAllRanges();
+            hideToolbar();
+            overlappingNoteIds = [groupId];
+            overlappingNoteIndex = 0;
+            openNoteGroup(groupId, quotedText);
+            openFolderUI(spans[0]);
+        });
+
+        // --- 4. Navigate independent overlapping notes ---
+        articleContent.addEventListener('click', e => {
+            // Drag-selecting annotated text must open the selection toolbar,
+            // not the existing note editor.
+            if (window.getSelection()?.toString().trim()) return;
+            const clicked = e.target.closest('.note-mark');
+            if (!clicked) return;
+            e.stopPropagation();
+            if (activeNoteGroupId && noteContent.value.trim() !== originalNoteText) saveCurrentNote();
+            const groups = [];
+            for (let item = clicked; item && item !== articleContent; item = item.parentElement) {
+                if (item.classList?.contains('note-mark') &&
+                    item.dataset.noteGroup && !groups.includes(item.dataset.noteGroup)) {
+                    groups.push(item.dataset.noteGroup);
+                }
+            }
+            if (!groups.length) return;
+            overlappingNoteIds = groups;
+            overlappingNoteIndex = 0;
+            openNoteGroup(groups[0]);
+            openFolderUI(clicked);
+        });
+
+        function openFolderUI(targetElement) {
+            const rect = targetElement.getBoundingClientRect();
+            let top = rect.bottom + window.scrollY + 15;
+            let left = rect.left + window.scrollX;
+
+            const cardWidth = 340;
+            if (left + cardWidth > window.innerWidth - 20) {
+                left = window.innerWidth - cardWidth - 20;
+            }
+            if (left < 20) left = 20;
+
+            noteCard.style.top = `${top}px`;
+            noteCard.style.left = `${left}px`;
+            noteCard.style.display = 'block';
+
+            setTimeout(() => noteContent.focus(), 50);
+        }
+
+        // --- 5. Editing & Saving Logic ---
+        noteContent.addEventListener('input', () => {
+            if (noteContent.value !== originalNoteText) {
+                saveNoteBtn.innerHTML = '<i class="ph ph-check-circle"></i>';
+                undoNoteBtn.style.display = 'flex';
+            } else {
+                saveNoteBtn.innerHTML = '<i class="ph ph-plus-circle"></i>';
+                undoNoteBtn.style.display = 'none';
+            }
+        });
+
+        undoNoteBtn.addEventListener('click', () => {
+            noteContent.value = originalNoteText;
+            saveNoteBtn.innerHTML = '<i class="ph ph-plus-circle"></i>';
+            undoNoteBtn.style.display = 'none';
+        });
+
+        function saveCurrentNote() {
+            if (!activeNoteGroupId) return;
+            const text = noteContent.value.trim();
+            
+            if (text === "") {
+                deleteActiveNote();
+                return;
+            }
+
+            const spans = document.querySelectorAll(`.note-mark[data-note-group="${activeNoteGroupId}"]`);
+            spans.forEach(span => {
+                span.dataset.noteContent = text;
+            });
+
+            originalNoteText = text;
+            saveNoteBtn.innerHTML = '<i class="ph ph-plus-circle"></i>';
+            undoNoteBtn.style.display = 'none';
+        }
+
+        saveNoteBtn.addEventListener('click', () => {
+            saveCurrentNote();
+            if (!activeNoteGroupId) return;
+            closeFolderUI();
+        });
+
+        function deleteActiveNote() {
+            if (!activeNoteGroupId) return;
+            const spans = getNoteSpans(activeNoteGroupId);
+            for (const span of spans) {
+                const parent = span.parentNode;
+                if (!parent) continue;
+                // Remove the marker with its note; never leave a stray icon behind.
+                span.querySelectorAll(':scope > .note-asterisk').forEach(icon => icon.remove());
+                while (span.firstChild) parent.insertBefore(span.firstChild, span);
+                parent.removeChild(span);
+            }
+            articleContent.normalize();
+            closeFolderUI();
+        }
+
+        deleteNoteBtn.addEventListener('click', deleteActiveNote);
+
+        function closeFolderUI() {
+            noteCard.style.display = 'none';
+            activeNoteGroupId = null;
+            overlappingNoteIds = [];
+            overlappingNoteIndex = 0;
+            updateOverlapNavigation();
+            noteSource.classList.remove('show');
+            noteContent.value = "";
+        }
+
+        document.addEventListener('mousedown', (e) => {
+            if (noteCard.style.display === 'block' && !noteCard.contains(e.target) && !e.target.closest('.note-mark')) {
+                saveCurrentNote();
+                if (activeNoteGroupId) closeFolderUI(); 
+            }
+        });
+
+        // --- 6. Copy & Share ---
+        // Match the Vulanet reading page's successful Copy/Share experience;
+        // note editing, underline rendering and highlight colours stay independent.
+        const actionToast = document.getElementById('actionToast');
+        let toastTimer;
+        function showActionToast(message) {
+            clearTimeout(toastTimer);
+            actionToast.textContent = message;
+            actionToast.classList.add('show');
+            toastTimer = setTimeout(() => actionToast.classList.remove('show'), 2400);
+        }
+
+        // Modern Clipboard API on HTTPS, plus a working fallback for local demos.
+        async function copyToClipboard(text) {
+            if (navigator.clipboard?.writeText) {
+                try { await navigator.clipboard.writeText(text); return true; }
+                catch (error) { /* Use the legacy fallback below. */ }
+            }
+            const input = document.createElement('textarea');
+            input.value = text;
+            input.setAttribute('readonly', '');
+            input.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+            document.body.appendChild(input);
+            input.select();
+            let copied = false;
+            try { copied = document.execCommand('copy'); }
+            catch (error) { copied = false; }
+            finally { input.remove(); }
+            return copied;
+        }
+
+        function clearCopyShareSelection() {
+            hideToolbar();
+            window.getSelection()?.removeAllRanges();
+            currentSelectionRange = null;
+        }
+
+        document.getElementById('copyBtn').addEventListener('click', async () => {
+            const text = currentSelectionRange?.toString().trim();
+            if (!text) return;
+            const copied = await copyToClipboard(text);
+            showActionToast(copied ? 'Copied to clipboard!' : 'Unable to copy text. Please try again.');
+            clearCopyShareSelection();
+        });
+
+        const shareFallback = document.getElementById('shareFallback');
+        const shareExcerpt = document.getElementById('shareExcerpt');
+        let fallbackShareText = '';
+
+        function closeShareOptions() {
+            if (shareFallback.open) shareFallback.close();
+        }
+        document.getElementById('closeShareFallback').addEventListener('click', closeShareOptions);
+        shareFallback.addEventListener('click', e => { if (e.target === shareFallback) closeShareOptions(); });
+
+        document.getElementById('copyShareExcerpt').addEventListener('click', async () => {
+            const copied = await copyToClipboard(fallbackShareText);
+            showActionToast(copied ? 'Copied to clipboard!' : 'Unable to copy. Please try again.');
+            if (copied) closeShareOptions();
+        });
+
+        function showShareAlternatives(text, title, url) {
+            fallbackShareText = `${text}\n\nFrom: ${title}${url ? `\n${url}` : ''}`;
+            shareExcerpt.textContent = text;
+            document.getElementById('shareWhatsApp').href =
+                `https://wa.me/?text=${encodeURIComponent(fallbackShareText)}`;
+            // Telegram accepts both a page URL and separate text; for a local file,
+            // do not share a file:// path that will be unusable to the recipient.
+            document.getElementById('shareTelegram').href =
+                `https://t.me/share/url?url=${encodeURIComponent(url || '')}&text=${encodeURIComponent(`${text}\n\nFrom: ${title}`)}`;
+            document.getElementById('shareEmail').href =
+                `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(fallbackShareText)}`;
+            clearCopyShareSelection();
+            if (!shareFallback.open) shareFallback.showModal();
+        }
+
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+            const text = currentSelectionRange?.toString().trim();
+            if (!text) return;
+            const title = articleContent.querySelector('h1')?.textContent.trim() || document.title;
+            const url = /^https?:$/.test(window.location.protocol) ? window.location.href : '';
+            const shareText = `${text}\n\nFrom: ${title}${url ? `\n${url}` : ''}`;
+            // Invoke the native share sheet DIRECTLY in the click handler to retain
+            // transient user activation. In ChromeOS/Android this shows installed apps.
+            if (typeof navigator.share === 'function') {
+                try {
+                    await navigator.share({ title, text: shareText, ...(url ? {url} : {}) });
+                    clearCopyShareSelection();
+                    return;
+                } catch (error) {
+                    clearCopyShareSelection();
+                    // Dismissing the chooser must not open another menu or copy anything.
+                    if (error?.name === 'AbortError') return;
+                    // If share fails for another reason, offer alternatives.
+                }
+            }
+            // No surprise clipboard permission prompt: explicit sharing choices instead.
+            showShareAlternatives(text, title, url);
+        });
+
+    </script>
+</body>
+</html>

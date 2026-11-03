@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmarks Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <!-- Updated font to Atkinson Hyperlegible Next -->
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Correct Phosphor Icons CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary-blue: #4285F4;
+            --dark-blue: #3367D6;
+            --light-blue: #E8F0FE;
+            --accent-orange: #FF9800;
+            --accent-green: #0F9D58;
+            --accent-red: #DB4437;
+            --accent-yellow: #F4B400;
+            --accent-turquoise: #40E0D0;
+            --text-dark: #202124;
+            --text-medium: #5F6368;
+            --text-light: #FFFFFF;
+            --bg-light: #F8F9FA;
+            --border-radius: 16px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 24px 20px;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .bookmarks-header {
+            display: flex;
+            margin-bottom: 24px;
+        }
+
+        .bookmarks-icon {
+            width: 140px;
+            height: 140px;
+            background-color: var(--primary-blue); /* Changed from gradient to solid blue */
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 24px;
+            flex-shrink: 0;
+            position: relative; /* For positioning the share icon */
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .bookmarks-icon:hover {
+            transform: scale(1.02);
+        }
+
+        .bookmarks-icon i.ph {
+            font-size: 70px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: normal;
+        }
+
+        /* Share icon positioned at bottom right */
+        .share-icon-overlay {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .share-icon-overlay:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .share-icon-overlay .material-symbols-outlined {
+            font-size: 18px;
+            color: white;
+        }
+
+        .bookmarks-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .bookmarks-details h1 {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--primary-blue);
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .bookmarks-stats {
+            color: var(--text-medium);
+            font-size: 13px;
+            margin-bottom: 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .user-link:hover {
+            color: var(--dark-blue);
+            text-decoration: underline;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border-radius: 500px;
+            border: none;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            white-space: nowrap;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary-blue);
+            border: 1px solid var(--primary-blue);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--light-blue);
+            border-color: var(--dark-blue);
+        }
+
+        .btn i {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        /* Topics Table */
+        .topics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 13px;
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .topics-table thead {
+            border-bottom: 1px solid var(--light-blue);
+            color: var(--text-medium);
+            font-size: 12px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: var(--light-blue);
+        }
+
+        .topics-table th {
+            text-align: left;
+            padding: 12px 10px;
+            font-weight: 500;
+        }
+
+        .topics-table th:first-child {
+            width: 30px;
+            text-align: center;
+            padding-left: 6px;
+        }
+
+        .topics-table th:nth-child(2) {
+            min-width: 150px;
+        }
+
+        .topics-table tbody tr {
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid var(--light-blue);
+            cursor: default;
+        }
+
+        .topics-table tbody tr:hover {
+            background-color: var(--light-blue);
+        }
+
+        .topics-table tbody tr.dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+            cursor: grabbing;
+        }
+
+        .topics-table tbody tr.drag-over {
+            border-top: 2px solid var(--primary-blue);
+        }
+
+        .topics-table td {
+            padding: 12px 10px;
+            vertical-align: middle;
+        }
+
+        .topics-table td:first-child {
+            text-align: center;
+            color: var(--text-medium);
+            padding-left: 6px;
+        }
+
+        .topic-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .course-icon {
+            width: 36px;
+            height: 36px;
+            background-color: var(--light-blue);
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 8px;
+            position: relative;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .course-icon::after {
+            content: attr(data-course);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(66, 133, 244, 0.95);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .course-icon::before {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent rgba(66, 133, 244, 0.95) transparent;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .course-icon:hover::after,
+        .course-icon:hover::before,
+        .course-icon.show-tooltip::after,
+        .course-icon.show-tooltip::before {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .topic-details {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .topic-details h4 {
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 20px;
+            line-height: 20px;
+            color: var(--text-dark);
+        }
+
+        .topic-title-link {
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .topic-title-link:hover {
+            color: var(--primary-blue);
+        }
+
+        .unit-chapter-info {
+            color: var(--text-medium);
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 17px;
+            line-height: 17px;
+        }
+
+        .unit-link, .chapter-link {
+            color: var(--text-medium);
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .unit-link:hover, .chapter-link:hover {
+            color: var(--primary-blue);
+            text-decoration: underline;
+        }
+
+        /* Timestamp styles */
+        .timestamp {
+            position: relative;
+            cursor: help;
+            color: var(--text-medium);
+            font-size: 12px;
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: left;
+        }
+
+        .timestamp:hover::after {
+            content: attr(data-exact-time);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 100;
+            pointer-events: none;
+            margin-bottom: 5px;
+        }
+
+        .timestamp:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+            margin-bottom: -5px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* Middle ellipsis for long text on mobile */
+        @media (max-width: 768px) {
+            .truncated-text {
+                position: relative;
+                cursor: pointer;
+            }
+            
+            .course-icon {
+                cursor: pointer;
+            }
+            
+            .timestamp:hover::after,
+            .timestamp:hover::before {
+                display: none;
+            }
+            
+            .timestamp:active::after {
+                content: attr(data-exact-time);
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 10000;
+                white-space: nowrap;
+                max-width: 90vw;
+                text-align: center;
+            }
+        }
+
+        /* Topic actions */
+        .topic-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            width: 50px;
+            padding-right: 10px;
+        }
+
+        .more-options-btn {
+            color: var(--text-medium);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 20px;
+            background: none;
+            border: none;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .reorder-mode .more-options-btn {
+            cursor: grab;
+            color: var(--primary-blue);
+        }
+
+        .more-options-btn:hover {
+            color: var(--primary-blue);
+            background-color: var(--light-blue);
+        }
+
+        .reorder-mode .more-options-btn:hover {
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+
+        /* Material icons styling - FIXED */
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24;
+            font-size: 20px;
+        }
+
+        /* Add Topics Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: white;
+            width: 95%;
+            max-width: 600px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--light-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--light-blue);
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-dark);
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .topic-list-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background-color 0.2s;
+            gap: 12px;
+            border: 1px solid var(--light-blue);
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .topic-list-item:hover {
+            background-color: var(--light-blue);
+        }
+
+        .topic-list-item .course-icon {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+        }
+
+        .topic-list-item .topic-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .topic-list-item .topic-details h4,
+        .topic-list-item .topic-details p {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .topic-list-item .btn-add {
+            background-color: white;
+            color: var(--primary-blue);
+            border: 1px solid var(--primary-blue);
+            padding: 5px 12px;
+            border-radius: 500px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .topic-list-item .btn-add:hover {
+            background-color: var(--primary-blue);
+            color: white;
+        }
+
+        .topic-list-item .btn-added {
+            background-color: var(--primary-blue);
+            color: white;
+            pointer-events: none;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--light-blue);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background-color: white;
+            border: 1px solid var(--light-blue);
+            border-radius: var(--border-radius);
+            padding: 8px 0;
+            min-width: 200px;
+            box-shadow: var(--shadow-md);
+            z-index: 1001;
+            display: none;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            gap: 12px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .context-menu-item:hover {
+            background-color: var(--light-blue);
+        }
+
+        .context-menu-item .material-symbols-outlined {
+            font-size: 18px;
+            color: var(--text-medium);
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background-color: var(--light-blue);
+            margin: 4px 0;
+        }
+
+        /* Custom tooltip */
+        .custom-tooltip {
+            position: fixed;
+            background-color: rgba(66, 133, 244, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10000;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            margin-top: -8px;
+            max-width: 300px;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            display: none;
+        }
+        
+        .custom-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: rgba(66, 133, 244, 0.95) transparent transparent transparent;
+        }
+
+        /* Reorder mode banner */
+        .reorder-mode-banner {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .reorder-mode-banner .material-symbols-outlined {
+            font-size: 20px;
+        }
+
+        .exit-reorder-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .exit-reorder-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* SHARE OVERLAY - NEW */
+        .share-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .share-content {
+            width: 100%;
+            max-width: 357px;
+            background: #f5f5f7;
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        .share-card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 32px 24px 28px;
+            margin-bottom: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,.06);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .share-brand {
+            margin-top: 16px;
+            font-weight: 700;
+            color: #4285F4;
+            font-size: 24px;
+            text-align: center;
+            width: 100%;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .share-sheet {
+            background: #fff;
+            border-top: 1px solid #dadada;
+            border-radius: 24px 24px 0 0;
+            padding: 16px 12px;
+        }
+
+        .share-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .share-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .share-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .share-icon {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .share-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .share-text {
+            font-size: 11px;
+            color: #333;
+            text-decoration: none;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 0 20px;
+        }
+
+        .bottom-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .bottom-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .bottom-icon {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .share-bottom-text {
+            font-size: 11px;
+            color: #333;
+            text-decoration: none;
+            font-family: 'Atkinson Hyperlegible Next', sans-serif;
+        }
+
+        a, a:visited, a:hover, a:active {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .truncated-text {
+                position: relative;
+                cursor: pointer;
+            }
+            
+            .course-icon {
+                cursor: pointer;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            .bookmarks-details h1 {
+                font-size: 36px;
+            }
+            
+            .bookmarks-icon {
+                width: 120px;
+                height: 120px;
+                margin-right: 20px;
+            }
+            
+            .bookmarks-icon i.ph {
+                font-size: 60px;
+            }
+            
+            .share-icon-overlay {
+                width: 28px;
+                height: 28px;
+                bottom: 10px;
+                right: 10px;
+            }
+            
+            .share-icon-overlay .material-symbols-outlined {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px 12px;
+            }
+            
+            .bookmarks-header {
+                flex-direction: column;
+            }
+            
+            .bookmarks-icon {
+                width: 100%;
+                height: 160px;
+                margin-right: 0;
+                margin-bottom: 20px;
+            }
+            
+            .bookmarks-details h1 {
+                font-size: 32px;
+            }
+            
+            .action-buttons {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            
+            .btn {
+                flex: 0 0 auto;
+            }
+            
+            /* Adjust column widths */
+            .topics-table th:first-child,
+            .topics-table td:first-child {
+                width: 25px;
+                padding-left: 4px;
+                padding-right: 4px;
+            }
+            
+            .topics-table th:nth-child(2),
+            .topics-table td:nth-child(2) {
+                min-width: 150px;
+            }
+            
+            .topic-info {
+                gap: 8px;
+            }
+            
+            .course-icon {
+                width: 32px;
+                height: 32px;
+            }
+
+            .reorder-mode-banner {
+                padding: 10px 15px;
+                font-size: 13px;
+            }
+            
+            .topic-actions {
+                width: 40px;
+                padding-right: 5px;
+            }
+            
+            .more-options-btn {
+                width: 28px;
+                height: 28px;
+                font-size: 18px;
+            }
+            
+            .material-symbols-outlined {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .bookmarks-details h1 {
+                font-size: 28px;
+            }
+            
+            .topic-details h4 {
+                font-size: 13px;
+            }
+            
+            .unit-chapter-info {
+                font-size: 11px;
+            }
+            
+            .btn {
+                padding: 5px 12px;
+                font-size: 11px;
+                height: 30px;
+            }
+            
+            .timestamp {
+                font-size: 11px;
+                min-width: 50px;
+            }
+            
+            .bookmarks-icon i.ph {
+                font-size: 55px;
+            }
+            
+            .share-icon-overlay {
+                width: 24px;
+                height: 24px;
+                bottom: 8px;
+                right: 8px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .bookmarks-details h1 {
+                font-size: 24px;
+            }
+            
+            .bookmarks-stats {
+                font-size: 12px;
+            }
+            
+            .action-buttons {
+                gap: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Tooltip element -->
+    <div id="customTooltip" class="custom-tooltip"></div>
+    
+    <!-- Reorder Mode Banner -->
+    <div id="reorderModeBanner" class="reorder-mode-banner">
+        <span class="material-symbols-outlined">reorder</span>
+        Drag items to reorder
+        <button class="exit-reorder-btn" id="exitReorderBtn">Done</button>
+    </div>
+    
+    <!-- SHARE OVERLAY -->
+    <div class="share-overlay" id="share-overlay">
+        <div class="share-content">
+            <!-- Share Card Preview -->
+            <div class="share-card" id="share-card">
+                <div class="bookmarks-icon" style="width: 100px; height: 100px; margin: 0 auto 16px;">
+                    <i class="ph ph-bookmarks"></i>
+                </div>
+                <div style="font-size: 20px; font-weight: 700; color: #202124; margin-bottom: 8px; font-family: 'Atkinson Hyperlegible Next', sans-serif;">Bookmarks Collection</div>
+                <div style="font-size: 14px; color: #5F6368; margin-bottom: 16px; font-family: 'Atkinson Hyperlegible Next', sans-serif;" id="share-stats-text"></div>
+                <div style="font-size: 12px; color: #4285F4; background: #E8F0FE; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-family: 'Atkinson Hyperlegible Next', sans-serif;">
+                    Created by User123
+                </div>
+                <div class="share-brand">Bookmarks Manager</div>
+            </div>
+
+            <div class="share-sheet">
+                <div class="share-grid">
+                    <div class="share-item" id="share-facebook">
+                        <div class="share-icon-circle">
+                            <div class="share-icon">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg">
+                            </div>
+                        </div>
+                        <div class="share-text">Facebook</div>
+                    </div>
+
+                    <div class="share-item" id="share-x">
+                        <div class="share-icon-circle">
+                            <div class="share-icon">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/b/b7/X_logo.jpg">
+                            </div>
+                        </div>
+                        <div class="share-text">X</div>
+                    </div>
+
+                    <div class="share-item" id="share-whatsapp">
+                        <div class="share-icon-circle">
+                            <div class="share-icon">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg">
+                            </div>
+                        </div>
+                        <div class="share-text">WhatsApp</div>
+                    </div>
+
+                    <div class="share-item" id="share-sms">
+                        <div class="share-icon-circle">
+                            <div class="share-icon">
+                                <span class="material-symbols-outlined">sms</span>
+                            </div>
+                        </div>
+                        <div class="share-text">Message</div>
+                    </div>
+                </div>
+
+                <div class="bottom-grid">
+                    <div class="bottom-item" id="copy-link">
+                        <div class="bottom-icon-circle">
+                            <div class="bottom-icon">
+                                <span class="material-symbols-outlined">link</span>
+                            </div>
+                        </div>
+                        <div class="share-bottom-text">Copy link</div>
+                    </div>
+
+                    <div class="bottom-item" id="more-options-share">
+                        <div class="bottom-icon-circle">
+                            <div class="bottom-icon">
+                                <span class="material-symbols-outlined">more_horiz</span>
+                            </div>
+                        </div>
+                        <div class="share-bottom-text">More</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" data-action="reorder">
+            <span class="material-symbols-outlined">reorder</span>
+            Change order
+        </div>
+        <div class="context-menu-item" data-action="remove">
+            <span class="material-symbols-outlined">delete</span>
+            Remove from Bookmarks
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="chapter">
+            <span class="material-symbols-outlined">auto_stories</span>
+            Go to chapter
+        </div>
+        <div class="context-menu-item" data-action="course">
+            <span class="material-symbols-outlined">school</span>
+            Go to course
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="share">
+            <span class="material-symbols-outlined">share</span>
+            Share
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="bookmarks-header">
+            <div class="bookmarks-icon" id="shareBookmarksIcon">
+                <!-- Phosphor Icon -->
+                <i class="ph ph-bookmarks"></i>
+                
+                <!-- Share icon at bottom right -->
+                <div class="share-icon-overlay">
+                    <span class="material-symbols-outlined">share</span>
+                </div>
+            </div>
+            <div class="bookmarks-details">
+                <h1>Bookmarks</h1>
+                <div class="bookmarks-stats">
+                    Created by <a href="#" class="user-link" id="userProfileLink">User123</a> • <span id="bookmarksCount">4 topics</span>
+                </div>
+                
+                <!-- Action buttons under bookmarks title -->
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="addTopicsBtn">
+                        <i class="fas fa-plus"></i> Add Topics
+                    </button>
+                    <button class="btn btn-secondary" id="downloadBtn">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Topics Table -->
+        <table class="topics-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Topic</th>
+                    <th>Date Added</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="bookmarksList">
+                <!-- Topics will be populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Add Topics Modal -->
+    <div class="modal-overlay" id="addTopicsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Topics to Bookmarks</h3>
+                <div class="modal-close" id="modalCloseBtn">
+                    <i class="fas fa-times" style="cursor: pointer; font-size: 18px; color: var(--text-medium);"></i>
+                </div>
+            </div>
+            <div class="modal-body" id="availableTopics">
+                <!-- Available topics will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Course icon mapping
+        const courseIcons = {
+            "G12 Life Sciences": "https://github.com/EnzoFarai/RsLib/raw/main/images/logos/g12-life-sciences.png",
+            "Java Programming": "https://github.com/EnzoFarai/RsLib/raw/main/images/logos/java-programming.png",
+            "Pharmacology-II": "https://github.com/EnzoFarai/RsLib/raw/main/images/logos/pharmacology-ii.png"
+        };
+
+        // Placeholder URLs for navigation
+        const PLACEHOLDER_URLS = {
+            topicPage: "#",
+            userProfile: "#",
+            courseContents: "#",
+            chapterPage: "#",
+            shareBookmarks: "#"
+        };
+
+        // Helper function to parse unit and chapter from string like "Unit 1, Chapter 3"
+        function parseUnitAndChapter(unitChapterString) {
+            const unitMatch = unitChapterString.match(/Unit\s+(\d+)/i);
+            const chapterMatch = unitChapterString.match(/Chapter\s+(\d+)/i);
+            
+            return {
+                unit: unitMatch ? unitMatch[1] : null,
+                chapter: chapterMatch ? chapterMatch[1] : null,
+                unitText: unitMatch ? unitMatch[0] : "",
+                chapterText: chapterMatch ? chapterMatch[0] : ""
+            };
+        }
+
+        // Timestamp formatting function
+        function formatTimestamp(createdAt) {
+            const now = new Date();
+            const createdDate = new Date(createdAt);
+            const diffMs = now - createdDate;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHour = Math.floor(diffMin / 60);
+            const diffDay = Math.floor(diffHour / 24);
+            
+            // Format exact date for hover tooltip
+            const exactDate = createdDate.toLocaleString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Apply timestamp rules
+            if (diffSec < 30) {
+                return { display: "Just now", exact: exactDate };
+            } else if (diffSec < 60) {
+                return { display: `${diffSec}s`, exact: exactDate };
+            } else if (diffMin < 60) {
+                return { display: `${diffMin}m`, exact: exactDate };
+            } else if (diffHour < 24) {
+                return { display: `${diffHour}h`, exact: exactDate };
+            } else if (diffDay < 7) {
+                return { display: `${diffDay}d`, exact: exactDate };
+            } else {
+                // More than 7 days
+                const currentYear = now.getFullYear();
+                const createdYear = createdDate.getFullYear();
+                
+                if (createdYear === currentYear) {
+                    // Current year: abbreviated month + day
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const month = monthNames[createdDate.getMonth()];
+                    const day = createdDate.getDate();
+                    return { display: `${day} ${month}`, exact: exactDate };
+                } else {
+                    // Previous years: month + day + year
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const month = monthNames[createdDate.getMonth()];
+                    const day = createdDate.getDate();
+                    const year = createdDate.getFullYear();
+                    return { display: `${day} ${month} ${year}`, exact: exactDate };
+                }
+            }
+        }
+
+        // Bookmarks data - with actual creation timestamps
+        let bookmarks = [
+            { 
+                id: 1, 
+                title: "Introduction to Java", 
+                unitChapter: "Unit 1, Chapter 1", 
+                course: "Java Programming", 
+                createdAt: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
+                iconColor: "#ff9a9e" 
+            },
+            { 
+                id: 2, 
+                title: "Advanced Parenteral Anticoagulants", 
+                unitChapter: "Unit 1, Chapter 2", 
+                course: "Pharmacology-II", 
+                createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+                iconColor: "#a18cd1" 
+            },
+            { 
+                id: 3, 
+                title: "Peripheral Nervous System", 
+                unitChapter: "Unit 2, Chapter 4", 
+                course: "G12 Life Sciences", 
+                createdAt: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+                iconColor: "#fbc2eb" 
+            },
+            { 
+                id: 4, 
+                title: "Oral Anticoagulants", 
+                unitChapter: "Unit 1, Chapter 3", 
+                course: "Pharmacology-II", 
+                createdAt: new Date(Date.now() - 604800000).toISOString(), // 7 days ago
+                iconColor: "#a6c1ee" 
+            }
+        ];
+
+        // Sample available topics to add
+        const availableTopics = [
+            { id: 5, title: "Core Features of Java", unitChapter: "Unit 1, Chapter 2", course: "Java Programming", iconColor: "#fad0c4" },
+            { id: 6, title: "Protein Synthesis", unitChapter: "Unit 1, Chapter 6", course: "G12 Life Sciences", iconColor: "#ff9a9e" }
+        ];
+
+        // Function to get course icon
+        function getCourseIcon(courseName) {
+            return courseIcons[courseName] || "https://via.placeholder.com/24/333333/ffffff?text=?";
+        }
+
+        // Function to navigate to topic page
+        function navigateToTopic(topic) {
+            window.location.href = PLACEHOLDER_URLS.topicPage;
+            console.log(`Navigating to topic page: ${topic.title}`);
+        }
+
+        // Function to navigate to unit
+        function navigateToUnit(topic) {
+            const parsed = parseUnitAndChapter(topic.unitChapter);
+            if (parsed.unit) {
+                window.location.href = PLACEHOLDER_URLS.courseContents + "?unit=" + parsed.unit;
+                console.log(`Navigating to Unit ${parsed.unit} in ${topic.course}`);
+            }
+        }
+
+        // Function to navigate to chapter
+        function navigateToChapter(topic) {
+            const parsed = parseUnitAndChapter(topic.unitChapter);
+            if (parsed.chapter) {
+                window.location.href = PLACEHOLDER_URLS.chapterPage + "?chapter=" + parsed.chapter;
+                console.log(`Navigating to Chapter ${parsed.chapter} in ${topic.course}`);
+            }
+        }
+
+        // Function to navigate to course
+        function navigateToCourse(topic) {
+            window.location.href = PLACEHOLDER_URLS.courseContents;
+            console.log(`Navigating to course: ${topic.course}`);
+        }
+
+        // Function to share topic (for individual topics)
+        function shareTopic(topic) {
+            if (navigator.share) {
+                navigator.share({
+                    title: topic.title,
+                    text: `Check out this topic: ${topic.title} from ${topic.course}`,
+                    url: PLACEHOLDER_URLS.topicPage
+                });
+            } else {
+                alert(`Sharing: ${topic.title}\n\nTopic: ${topic.title}\nUnit/Chapter: ${topic.unitChapter}\nCourse: ${topic.course}`);
+            }
+        }
+
+        // Function to share entire bookmarks collection
+        function getBookmarksShareText() {
+            const topicCount = bookmarks.length;
+            const courses = [...new Set(bookmarks.map(topic => topic.course))];
+            
+            let shareText = `Check out my bookmarks collection!\n\n`;
+            shareText += `📚 I have ${topicCount} bookmarked topics across ${courses.length} courses:\n\n`;
+            
+            // Add a few sample topics
+            bookmarks.slice(0, 3).forEach((topic, index) => {
+                shareText += `• ${topic.title} (${topic.course})\n`;
+            });
+            
+            if (topicCount > 3) {
+                shareText += `• ...and ${topicCount - 3} more topics\n`;
+            }
+            
+            shareText += `\nExplore my learning journey!`;
+            
+            return shareText;
+        }
+
+        // Function to navigate to user profile
+        function navigateToUserProfile() {
+            window.location.href = PLACEHOLDER_URLS.userProfile;
+            console.log("Navigating to user profile");
+        }
+
+        // DOM elements
+        const bookmarksListContainer = document.getElementById('bookmarksList');
+        const availableTopicsContainer = document.getElementById('availableTopics');
+        const addTopicsBtn = document.getElementById('addTopicsBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const addTopicsModal = document.getElementById('addTopicsModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        const bookmarksCount = document.getElementById('bookmarksCount');
+        const customTooltip = document.getElementById('customTooltip');
+        const contextMenu = document.getElementById('contextMenu');
+        const reorderModeBanner = document.getElementById('reorderModeBanner');
+        const exitReorderBtn = document.getElementById('exitReorderBtn');
+        const userProfileLink = document.getElementById('userProfileLink');
+        const shareBookmarksIcon = document.getElementById('shareBookmarksIcon');
+        const shareOverlay = document.getElementById('share-overlay');
+        const shareStatsText = document.getElementById('share-stats-text');
+
+        // App state
+        let contextMenuTopicId = null;
+        let longPressTimer = null;
+        let longPressTarget = null;
+        let isReorderMode = false;
+        let timestampUpdateInterval = null;
+        
+        // Drag and drop state
+        let draggedElement = null;
+        let dragStartY = 0;
+        let elementStartY = 0;
+        
+        // Tooltip management
+        let tooltipTimeout = null;
+        
+        function showTooltip(text, x, y) {
+            customTooltip.textContent = text;
+            customTooltip.style.left = x + 'px';
+            customTooltip.style.top = y + 'px';
+            customTooltip.style.display = 'block';
+            
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+            }
+            
+            tooltipTimeout = setTimeout(() => {
+                hideTooltip();
+            }, 3000);
+        }
+        
+        function hideTooltip() {
+            customTooltip.style.display = 'none';
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+        }
+        
+        // Context menu functions
+        function showContextMenu(x, y, topicId) {
+            contextMenuTopicId = topicId;
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+            contextMenu.style.display = 'block';
+        }
+        
+        function hideContextMenu() {
+            contextMenu.style.display = 'none';
+            contextMenuTopicId = null;
+        }
+        
+        function handleContextMenuAction(action) {
+            const topic = bookmarks.find(t => t.id === contextMenuTopicId);
+            if (!topic) return;
+            
+            switch(action) {
+                case 'reorder':
+                    enterReorderMode();
+                    break;
+                case 'remove':
+                    removeTopicFromBookmarks(contextMenuTopicId);
+                    break;
+                case 'chapter':
+                    navigateToChapter(topic);
+                    break;
+                case 'course':
+                    navigateToCourse(topic);
+                    break;
+                case 'share':
+                    shareTopic(topic);
+                    break;
+            }
+            hideContextMenu();
+        }
+        
+        // Reorder mode functions - FIXED ICON SWITCHING
+        function enterReorderMode() {
+            isReorderMode = true;
+            document.body.classList.add('reorder-mode');
+            reorderModeBanner.style.display = 'flex';
+            
+            // Update ALL buttons to show reorder icon
+            document.querySelectorAll('.more-options-btn .material-symbols-outlined').forEach(icon => {
+                icon.textContent = 'reorder';
+            });
+            
+            setupDragAndDrop();
+        }
+        
+        function exitReorderMode() {
+            isReorderMode = false;
+            document.body.classList.remove('reorder-mode');
+            reorderModeBanner.style.display = 'none';
+            
+            // Update ALL buttons to show more_horiz icon
+            document.querySelectorAll('.more-options-btn .material-symbols-outlined').forEach(icon => {
+                icon.textContent = 'more_horiz';
+            });
+            
+            cleanupDragAndDrop();
+        }
+        
+        // Simple drag and drop setup
+        function setupDragAndDrop() {
+            document.querySelectorAll('.more-options-btn').forEach(button => {
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                newButton.style.cursor = 'grab';
+                newButton.title = 'Drag to reorder';
+                
+                newButton.addEventListener('mousedown', startDrag);
+                newButton.addEventListener('touchstart', startDrag);
+            });
+        }
+        
+        function cleanupDragAndDrop() {
+            document.querySelectorAll('.more-options-btn').forEach(button => {
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                newButton.style.cursor = 'pointer';
+                newButton.title = 'More options';
+                
+                newButton.addEventListener('click', function(e) {
+                    if (isReorderMode) return;
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const topicId = parseInt(this.getAttribute('data-topic-id'));
+                    const rect = this.getBoundingClientRect();
+                    
+                    const x = rect.left - 200;
+                    const y = rect.top + rect.height;
+                    
+                    showContextMenu(x, y, topicId);
+                });
+            });
+            
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+                draggedElement = null;
+            }
+            
+            document.querySelectorAll('.topics-table tbody tr').forEach(row => {
+                row.classList.remove('drag-over');
+            });
+        }
+        
+        function startDrag(e) {
+            if (!isReorderMode) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const button = e.currentTarget;
+            const row = button.closest('tr');
+            
+            if (!row) return;
+            
+            draggedElement = row;
+            draggedElement.classList.add('dragging');
+            
+            const rect = row.getBoundingClientRect();
+            if (e.type === 'touchstart') {
+                dragStartY = e.touches[0].clientY;
+            } else {
+                dragStartY = e.clientY;
+            }
+            elementStartY = rect.top;
+            
+            document.addEventListener('mousemove', handleDragMove);
+            document.addEventListener('touchmove', handleDragMove, { passive: false });
+            document.addEventListener('mouseup', handleDragEnd);
+            document.addEventListener('touchend', handleDragEnd);
+        }
+        
+        function handleDragMove(e) {
+            if (!draggedElement) return;
+            
+            e.preventDefault();
+            
+            let clientY;
+            if (e.type === 'touchmove') {
+                clientY = e.touches[0].clientY;
+            } else {
+                clientY = e.clientY;
+            }
+            
+            const deltaY = clientY - dragStartY;
+            draggedElement.style.transform = `translateY(${deltaY}px)`;
+            draggedElement.style.zIndex = '1000';
+            
+            const rows = Array.from(document.querySelectorAll('.topics-table tbody tr:not(.dragging)'));
+            let hoverRow = null;
+            
+            for (const row of rows) {
+                const rect = row.getBoundingClientRect();
+                if (clientY >= rect.top && clientY <= rect.bottom) {
+                    hoverRow = row;
+                    break;
+                }
+            }
+            
+            rows.forEach(row => row.classList.remove('drag-over'));
+            if (hoverRow && hoverRow !== draggedElement) {
+                hoverRow.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragEnd(e) {
+            if (!draggedElement) return;
+            
+            e.preventDefault();
+            
+            const rows = Array.from(document.querySelectorAll('.topics-table tbody tr:not(.dragging)'));
+            let finalHoverRow = null;
+            let clientY;
+            
+            if (e.type === 'touchend') {
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientY = e.clientY;
+            }
+            
+            for (const row of rows) {
+                const rect = row.getBoundingClientRect();
+                if (clientY >= rect.top && clientY <= rect.bottom) {
+                    finalHoverRow = row;
+                    break;
+                }
+            }
+            
+            if (finalHoverRow && finalHoverRow !== draggedElement) {
+                const draggedId = parseInt(draggedElement.getAttribute('data-id'));
+                const targetId = parseInt(finalHoverRow.getAttribute('data-id'));
+                
+                const draggedIndex = bookmarks.findIndex(t => t.id === draggedId);
+                const targetIndex = bookmarks.findIndex(t => t.id === targetId);
+                
+                if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
+                    const [draggedTopic] = bookmarks.splice(draggedIndex, 1);
+                    
+                    let newIndex = targetIndex;
+                    if (draggedIndex < targetIndex) {
+                        newIndex = targetIndex - 1;
+                    }
+                    
+                    bookmarks.splice(newIndex, 0, draggedTopic);
+                    
+                    renderBookmarks();
+                }
+            }
+            
+            draggedElement.classList.remove('dragging');
+            draggedElement.style.transform = '';
+            draggedElement.style.zIndex = '';
+            draggedElement = null;
+            
+            rows.forEach(row => row.classList.remove('drag-over'));
+            
+            document.removeEventListener('mousemove', handleDragMove);
+            document.removeEventListener('touchmove', handleDragMove);
+            document.removeEventListener('mouseup', handleDragEnd);
+            document.removeEventListener('touchend', handleDragEnd);
+        }
+        
+        // Share overlay functionality
+        function showShareOverlay() {
+            const topicCount = bookmarks.length;
+            const courses = [...new Set(bookmarks.map(topic => topic.course))];
+            
+            shareStatsText.textContent = `${topicCount} topics • ${courses.length} courses`;
+            shareOverlay.style.display = 'flex';
+        }
+        
+        function hideShareOverlay() {
+            shareOverlay.style.display = 'none';
+        }
+        
+        // Copy to clipboard function
+        function copyToClipboardWithAlert(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Copied to clipboard! You can now share your bookmarks collection.');
+                }).catch(() => {
+                    fallbackCopyToClipboard(text);
+                });
+            } else {
+                fallbackCopyToClipboard(text);
+            }
+        }
+        
+        // Fallback copy method
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                alert('Copied to clipboard! You can now share your bookmarks collection.');
+            } catch (err) {
+                alert('Please copy this text manually:\n\n' + text);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // Native share sheet
+        async function triggerNativeShareSheet() {
+            const shareText = getBookmarksShareText();
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'My Bookmarks Collection',
+                        text: shareText,
+                        url: PLACEHOLDER_URLS.shareBookmarks
+                    });
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        copyToClipboardWithAlert(shareText);
+                    }
+                }
+            } else {
+                copyToClipboardWithAlert(shareText);
+            }
+        }
+        
+        // Add click outside to hide tooltip, context menu, and share overlay
+        document.addEventListener('click', (e) => {
+            if (!customTooltip.contains(e.target) && !e.target.classList.contains('truncated-text')) {
+                hideTooltip();
+            }
+            
+            if (!contextMenu.contains(e.target) && !e.target.classList.contains('more-options-btn')) {
+                hideContextMenu();
+            }
+            
+            if (shareOverlay.style.display === 'flex' && e.target === shareOverlay) {
+                hideShareOverlay();
+            }
+        });
+        
+        // Context menu event listeners
+        document.querySelectorAll('.context-menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const action = this.getAttribute('data-action');
+                handleContextMenuAction(action);
+            });
+        });
+
+        // Exit reorder mode button
+        exitReorderBtn.addEventListener('click', exitReorderMode);
+
+        // User profile link
+        userProfileLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            navigateToUserProfile();
+        });
+
+        // Share bookmarks icon click
+        shareBookmarksIcon.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showShareOverlay();
+        });
+        
+        // Share overlay functionality
+        document.getElementById('share-facebook').addEventListener('click', () => {
+            const shareText = encodeURIComponent(getBookmarksShareText());
+            const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(PLACEHOLDER_URLS.shareBookmarks)}&quote=${shareText}&hashtag=%23Bookmarks`;
+            window.open(facebookShareUrl, 'fb-share-dialog', 'width=626,height=436');
+            hideShareOverlay();
+        });
+        
+        document.getElementById('share-x').addEventListener('click', () => {
+            const fullShareText = getBookmarksShareText();
+            const twitterText = encodeURIComponent(fullShareText);
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${twitterText}`;
+            window.open(twitterUrl, 'twitter-share-dialog', 'width=550,height=420');
+            hideShareOverlay();
+        });
+        
+        document.getElementById('share-whatsapp').addEventListener('click', () => {
+            const fullShareText = getBookmarksShareText();
+            const whatsappText = encodeURIComponent(fullShareText);
+            const whatsappUrl = `https://wa.me/?text=${whatsappText}`;
+            window.open(whatsappUrl, 'whatsapp-share', 'width=600,height=600');
+            hideShareOverlay();
+        });
+        
+        document.getElementById('share-sms').addEventListener('click', () => {
+            const fullShareText = getBookmarksShareText();
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                const smsUrl = `sms:?body=${encodeURIComponent(fullShareText)}`;
+                window.location.href = smsUrl;
+            } else {
+                copyToClipboardWithAlert(fullShareText);
+            }
+            hideShareOverlay();
+        });
+        
+        document.getElementById('copy-link').addEventListener('click', () => {
+            copyToClipboardWithAlert(getBookmarksShareText());
+            hideShareOverlay();
+        });
+        
+        document.getElementById('more-options-share').addEventListener('click', async () => {
+            await triggerNativeShareSheet();
+            hideShareOverlay();
+        });
+
+        // Function to truncate text with middle ellipsis on mobile
+        function truncateWithMiddleEllipsis(text, maxLength = 30) {
+            if (text.length <= maxLength || window.innerWidth > 768) return text;
+            
+            const start = text.substring(0, Math.floor(maxLength / 2) - 2);
+            const end = text.substring(text.length - Math.floor(maxLength / 2) + 2);
+            return start + '...' + end;
+        }
+
+        // Function to apply middle ellipsis to elements on mobile
+        function applyMiddleEllipsis() {
+            const isMobile = window.innerWidth <= 768;
+            
+            document.querySelectorAll('.topic-title-link').forEach(el => {
+                const fullText = el.getAttribute('data-fulltext');
+                if (fullText) {
+                    if (isMobile && fullText.length > 30) {
+                        el.textContent = truncateWithMiddleEllipsis(fullText, 30);
+                        el.classList.add('truncated-text');
+                    } else {
+                        el.textContent = fullText;
+                        if (!isMobile) {
+                            el.setAttribute('title', fullText);
+                        }
+                    }
+                }
+            });
+            
+            if (isMobile) {
+                document.querySelectorAll('.truncated-text').forEach(el => {
+                    const newEl = el.cloneNode(true);
+                    el.parentNode.replaceChild(newEl, el);
+                    
+                    newEl.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const fullText = this.getAttribute('data-fulltext');
+                        if (fullText) {
+                            const rect = this.getBoundingClientRect();
+                            const x = rect.left + (rect.width / 2);
+                            const y = rect.top;
+                            
+                            showTooltip(fullText, x, y);
+                        }
+                    });
+                });
+            }
+        }
+
+        // Initialize the bookmarks - FIXED ICON RENDERING
+        function renderBookmarks() {
+            bookmarksListContainer.innerHTML = '';
+            
+            bookmarks.forEach((topic, index) => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-id', topic.id);
+                
+                const parsed = parseUnitAndChapter(topic.unitChapter);
+                const timestamp = formatTimestamp(topic.createdAt);
+                
+                let iconBackground = `linear-gradient(135deg, ${topic.iconColor}, #${Math.floor(Math.random()*16777215).toString(16)})`;
+                if (topic.course === "Java Programming") {
+                    iconBackground = `url(${courseIcons["Java Programming"]})`;
+                } else if (topic.course === "Pharmacology-II") {
+                    iconBackground = `url(${courseIcons["Pharmacology-II"]})`;
+                } else if (topic.course === "G12 Life Sciences") {
+                    iconBackground = `url(${courseIcons["G12 Life Sciences"]})`;
+                }
+                
+                let unitChapterHTML = '';
+                if (parsed.unitText && parsed.chapterText) {
+                    unitChapterHTML = `<a href="#" class="unit-link" data-topic-id="${topic.id}" data-unit="${parsed.unit}">${parsed.unitText}</a>, <a href="#" class="chapter-link" data-topic-id="${topic.id}" data-chapter="${parsed.chapter}">${parsed.chapterText}</a>`;
+                } else {
+                    unitChapterHTML = topic.unitChapter;
+                }
+                
+                // FIXED: Only use Material Design icons, no text content
+                const iconName = isReorderMode ? 'reorder' : 'more_horiz';
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>
+                        <div class="topic-info">
+                            <div class="course-icon" 
+                                 style="background: ${iconBackground}; background-size: cover;" 
+                                 data-course="${topic.course}"
+                                 data-topic-id="${topic.id}">
+                            </div>
+                            <div class="topic-details">
+                                <h4>
+                                    <a href="#" class="topic-title-link" data-topic-id="${topic.id}" data-fulltext="${topic.title}">
+                                        ${topic.title}
+                                    </a>
+                                </h4>
+                                <div class="unit-chapter-info" data-fulltext="${topic.unitChapter}">
+                                    ${unitChapterHTML}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="timestamp" data-exact-time="${timestamp.exact}">
+                            ${timestamp.display}
+                        </span>
+                    </td>
+                    <td class="topic-actions">
+                        <button class="more-options-btn" data-topic-id="${topic.id}" title="${isReorderMode ? 'Drag to reorder' : 'More options'}">
+                            <span class="material-symbols-outlined">${iconName}</span>
+                        </button>
+                    </td>
+                `;
+                
+                bookmarksListContainer.appendChild(row);
+            });
+            
+            applyMiddleEllipsis();
+            
+            // Add event listeners for topic title links
+            document.querySelectorAll('.topic-title-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const topicId = parseInt(this.getAttribute('data-topic-id'));
+                    const topic = bookmarks.find(t => t.id === topicId);
+                    if (topic) {
+                        navigateToTopic(topic);
+                    }
+                });
+            });
+            
+            // Add event listeners for unit links
+            document.querySelectorAll('.unit-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const topicId = parseInt(this.getAttribute('data-topic-id'));
+                    const topic = bookmarks.find(t => t.id === topicId);
+                    if (topic) {
+                        navigateToUnit(topic);
+                    }
+                });
+            });
+            
+            // Add event listeners for chapter links
+            document.querySelectorAll('.chapter-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const topicId = parseInt(this.getAttribute('data-topic-id'));
+                    const topic = bookmarks.find(t => t.id === topicId);
+                    if (topic) {
+                        navigateToChapter(topic);
+                    }
+                });
+            });
+            
+            // Add course icon tooltip functionality
+            document.querySelectorAll('.course-icon').forEach(icon => {
+                const newIcon = icon.cloneNode(true);
+                icon.parentNode.replaceChild(newIcon, icon);
+                
+                newIcon.addEventListener('mouseenter', function() {
+                    this.classList.add('show-tooltip');
+                });
+                
+                newIcon.addEventListener('mouseleave', function() {
+                    this.classList.remove('show-tooltip');
+                });
+                
+                newIcon.addEventListener('touchstart', function(e) {
+                    longPressTarget = this;
+                    longPressTimer = setTimeout(() => {
+                        this.classList.add('show-tooltip');
+                        longPressTimer = null;
+                    }, 500);
+                });
+                
+                newIcon.addEventListener('touchend', function(e) {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    } else {
+                        setTimeout(() => {
+                            this.classList.remove('show-tooltip');
+                        }, 2000);
+                    }
+                });
+                
+                newIcon.addEventListener('touchmove', function(e) {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                });
+            });
+            
+            // Add more options button functionality
+            document.querySelectorAll('.more-options-btn').forEach(button => {
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (isReorderMode) {
+                        return;
+                    }
+                    
+                    const topicId = parseInt(this.getAttribute('data-topic-id'));
+                    const rect = this.getBoundingClientRect();
+                    
+                    const x = rect.left - 200;
+                    const y = rect.top + rect.height;
+                    
+                    showContextMenu(x, y, topicId);
+                });
+            });
+            
+            if (isReorderMode) {
+                setupDragAndDrop();
+            }
+        }
+
+        // Update timestamps dynamically
+        function updateTimestamps() {
+            document.querySelectorAll('.timestamp').forEach(timestampEl => {
+                const row = timestampEl.closest('tr');
+                if (!row) return;
+                
+                const topicId = parseInt(row.getAttribute('data-id'));
+                const topic = bookmarks.find(t => t.id === topicId);
+                
+                if (topic) {
+                    const timestamp = formatTimestamp(topic.createdAt);
+                    timestampEl.textContent = timestamp.display;
+                    timestampEl.setAttribute('data-exact-time', timestamp.exact);
+                }
+            });
+        }
+
+        // Initialize available topics modal
+        function renderAvailableTopics() {
+            availableTopicsContainer.innerHTML = '';
+            
+            availableTopics.forEach(topic => {
+                const isInBookmarks = bookmarks.some(t => t.id === topic.id);
+                
+                const parsed = parseUnitAndChapter(topic.unitChapter);
+                
+                let iconBackground = `linear-gradient(135deg, ${topic.iconColor}, #${Math.floor(Math.random()*16777215).toString(16)})`;
+                if (topic.course === "Java Programming") {
+                    iconBackground = `url(${courseIcons["Java Programming"]})`;
+                } else if (topic.course === "Pharmacology-II") {
+                    iconBackground = `url(${courseIcons["Pharmacology-II"]})`;
+                } else if (topic.course === "G12 Life Sciences") {
+                    iconBackground = `url(${courseIcons["G12 Life Sciences"]})`;
+                }
+                
+                const topicElement = document.createElement('div');
+                topicElement.className = 'topic-list-item';
+                topicElement.innerHTML = `
+                    <div class="course-icon" style="background: ${iconBackground}; background-size: cover;" data-course="${topic.course}"></div>
+                    <div class="topic-details">
+                        <h4 data-fulltext="${topic.title}">${topic.title}</h4>
+                        <p data-fulltext="${topic.unitChapter} • ${topic.course}">${topic.unitChapter} • ${topic.course}</p>
+                    </div>
+                    <button class="btn-add ${isInBookmarks ? 'btn-added' : ''}" data-id="${topic.id}" ${isInBookmarks ? 'disabled' : ''}>
+                        ${isInBookmarks ? '<i class="fas fa-check"></i> Added' : '<i class="fas fa-plus"></i> Add'}
+                    </button>
+                `;
+                
+                availableTopicsContainer.appendChild(topicElement);
+            });
+            
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                document.querySelectorAll('.topic-list-item .topic-details h4').forEach(el => {
+                    const fullText = el.getAttribute('data-fulltext');
+                    if (fullText && fullText.length > 30) {
+                        el.textContent = truncateWithMiddleEllipsis(fullText, 30);
+                        el.classList.add('truncated-text');
+                    }
+                });
+                
+                document.querySelectorAll('.topic-list-item .topic-details p').forEach(el => {
+                    const fullText = el.getAttribute('data-fulltext');
+                    if (fullText && fullText.length > 35) {
+                        el.textContent = truncateWithMiddleEllipsis(fullText, 35);
+                        el.classList.add('truncated-text');
+                    }
+                });
+                
+                document.querySelectorAll('.topic-list-item .truncated-text').forEach(el => {
+                    el.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const fullText = this.getAttribute('data-fulltext');
+                        if (fullText) {
+                            const rect = this.getBoundingClientRect();
+                            const x = rect.left + (rect.width / 2);
+                            const y = rect.top;
+                            
+                            showTooltip(fullText, x, y);
+                        }
+                    });
+                });
+            }
+            
+            document.querySelectorAll('.topic-list-item .course-icon').forEach(icon => {
+                icon.addEventListener('mouseenter', function() {
+                    this.classList.add('show-tooltip');
+                });
+                
+                icon.addEventListener('mouseleave', function() {
+                    this.classList.remove('show-tooltip');
+                });
+                
+                icon.addEventListener('touchstart', function(e) {
+                    longPressTarget = this;
+                    longPressTimer = setTimeout(() => {
+                        this.classList.add('show-tooltip');
+                        longPressTimer = null;
+                    }, 500);
+                });
+                
+                icon.addEventListener('touchend', function(e) {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    } else {
+                        setTimeout(() => {
+                            this.classList.remove('show-tooltip');
+                        }, 2000);
+                    }
+                });
+                
+                icon.addEventListener('touchmove', function(e) {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.btn-add:not(.btn-added)').forEach(button => {
+                button.addEventListener('click', function() {
+                    const topicId = parseInt(this.getAttribute('data-id'));
+                    addTopicToBookmarks(topicId);
+                    this.classList.add('btn-added');
+                    this.innerHTML = '<i class="fas fa-check"></i> Added';
+                    this.disabled = true;
+                });
+            });
+        }
+
+        // Add topic to bookmarks (add to top as most recent)
+        function addTopicToBookmarks(topicId) {
+            const topicToAdd = availableTopics.find(topic => topic.id === topicId);
+            if (topicToAdd) {
+                const topicWithDate = {
+                    ...topicToAdd,
+                    createdAt: new Date().toISOString()
+                };
+                
+                bookmarks.unshift(topicWithDate);
+                renderBookmarks();
+                updateBookmarkStats();
+            }
+        }
+
+        // Remove topic from bookmarks
+        function removeTopicFromBookmarks(topicId) {
+            const topicIndex = bookmarks.findIndex(topic => topic.id === topicId);
+            if (topicIndex !== -1) {
+                bookmarks.splice(topicIndex, 1);
+                renderBookmarks();
+                updateBookmarkStats();
+                
+                renderAvailableTopics();
+            }
+        }
+
+        // Update bookmark stats
+        function updateBookmarkStats() {
+            const topicCount = bookmarks.length;
+            bookmarksCount.textContent = `${topicCount} topic${topicCount !== 1 ? 's' : ''}`;
+        }
+
+        // Download bookmarks functionality
+        function downloadBookmarks() {
+            const bookmarksData = {
+                name: "Bookmarks",
+                createdBy: "User123",
+                topicCount: bookmarks.length,
+                topics: bookmarks.map(topic => ({
+                    topic: topic.title,
+                    unitChapter: topic.unitChapter,
+                    course: topic.course,
+                    dateAdded: topic.createdAt
+                }))
+            };
+            
+            const dataStr = JSON.stringify(bookmarksData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileName = 'bookmarks.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileName);
+            linkElement.click();
+            
+            alert('Bookmarks downloaded as JSON file! You can import it later to restore your bookmarks.');
+        }
+
+        // Event listeners
+        addTopicsBtn.addEventListener('click', () => {
+            renderAvailableTopics();
+            addTopicsModal.style.display = 'flex';
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            addTopicsModal.style.display = 'none';
+        });
+
+        modalCloseBtn.addEventListener('click', () => {
+            addTopicsModal.style.display = 'none';
+        });
+
+        downloadBtn.addEventListener('click', downloadBookmarks);
+
+        // Close modal when clicking outside
+        addTopicsModal.addEventListener('click', (e) => {
+            if (e.target === addTopicsModal) {
+                addTopicsModal.style.display = 'none';
+            }
+        });
+
+        // Reapply middle ellipsis on window resize
+        window.addEventListener('resize', () => {
+            renderBookmarks();
+        });
+
+        // Initialize the app
+        renderBookmarks();
+        updateBookmarkStats();
+        
+        // Start timestamp update interval (every 30 seconds)
+        timestampUpdateInterval = setInterval(updateTimestamps, 30000);
+        
+        // Clean up interval on page unload
+        window.addEventListener('beforeunload', () => {
+            if (timestampUpdateInterval) {
+                clearInterval(timestampUpdateInterval);
+            }
+        });
+    </script>
+</body>
+</html>
