@@ -1,0 +1,4872 @@
+here is message 1: 
+# HANDOFF — VULANET READING, ANNOTATION & COLLECTIONS WORKSTREAM (v12)
+
+You are taking over the Vulanet Reading, Annotation and Collections workstream.
+
+This handoff consolidates the project context, verified database history, existing project constraints, approved architectural decisions, outstanding verification, functional requirements, attachment protocol and implementation instructions from the previous development chat.
+
+**Read the entire handoff before responding or taking action.**
+
+Do not start generating code immediately. The first task is to receive and inspect the project materials, establish the intended user experience, verify the saved SQL against the design, and obtain the operator's approval before implementation.
+
+---
+
+# 1. PROJECT CONTEXT
+
+Vulanet is a gamified learning platform inspired by Duolingo, Brilliant and Mimo.
+
+The existing technology stack is:
+
+- Vanilla JavaScript using ES modules.
+- Supabase for authentication, database persistence, Row Level Security (RLS), leagues and other platform functionality.
+- HTML and CSS for the frontend.
+- Local assets under `/public/assets/` and `/src/lib/`.
+- Shared layout loading through `loadLayout()` in `src/js/layout.js`.
+- Vercel as the intended deployment platform.
+
+Project details:
+
+- GitHub repository: `EnzoFarai/vulanet`
+- Local project directory: `~/vulanet`
+- Branch: `main`
+
+The current task concerns the reading experience and its associated bookmarks, highlights, notes and collection-sharing functionality.
+
+The objective is to integrate these features into the existing Vulanet project without disturbing unrelated functionality.
+
+---
+
+# 2. COMPLETED WORK AND SCOPE PROTECTION
+
+## 2.1. Leagues workstream
+
+The leagues workstream is closed and shipped.
+
+Its changes were applied to the live Supabase project.
+
+Do not modify:
+
+- `migrations/0001`–`0011`
+- `supabase-schema.sql`
+- `leaderboard.html`
+- `pages/profile.html`
+- `src/js/supabase.js`, unless the operator explicitly authorises a specific change
+- `src/js/layout.js`
+- Existing league tables, RPCs, triggers or policies
+- Unrelated league JavaScript or styling
+
+Do not use this reading workstream as an opportunity to refactor, redesign or repair the leagues system.
+
+## 2.2. Reading workstream
+
+The reading workstream has undergone nine planning and review rounds.
+
+The architecture and principal technical decisions are documented in §5.
+
+Three SQL migration files have already been saved locally and submitted through the Supabase SQL Editor. Their actual execution and verification status is documented in §6.
+
+The seven application files described in §7 have not yet been generated.
+
+The next chat must inspect the actual supplied project files before generating application code.
+
+Do not assume that this handoff establishes the current contents of every file.
+
+---
+
+# 3. VERIFIED LIVE DATABASE BASELINE
+
+The operator previously completed a direct, read-only audit of the live Supabase database.
+
+The findings below describe the database at the time of that audit. The reading migration was subsequently executed, so distinguish the original baseline from the current post-migration database.
+
+The live database is authoritative for its actual current state.
+
+**Do not ask the operator to repeat the completed baseline audit without a specific technical reason.**
+
+## 3.1. Original public tables
+
+The baseline contained 17 tables in the `public` schema:
+
+1. `daily_progress`
+2. `daily_quests`
+3. `follows`
+4. `glossary_discoveries`
+5. `league_coin_entitlements`
+6. `league_moods`
+7. `league_other_reward_entitlements`
+8. `league_participants`
+9. `league_results`
+10. `league_weeks`
+11. `lesson_progress`
+12. `profiles`
+13. `quest_suggestion_dismissals`
+14. `user_achievements`
+15. `user_preferences`
+16. `user_records`
+17. `user_stats`
+
+At the time of the baseline audit:
+
+- All 17 tables had primary keys.
+- Their indexes were valid.
+- `profiles` had a unique username.
+- `user_stats`, `user_records` and `user_preferences` were keyed by `user_id`.
+- `user_id` was nullable in some of `daily_quests`, `lesson_progress` and `user_achievements`.
+
+Do not assume nullable columns are erroneous without examining their actual use.
+
+The reading migration was subsequently executed. Do not describe the current database as having no reading tables without checking it.
+
+## 3.2. Original RLS state
+
+At the time of the baseline audit:
+
+- RLS was enabled on all 17 baseline tables.
+- `FORCE ROW LEVEL SECURITY` was false.
+- There were 31 existing policies.
+- All 31 policies were permissive.
+
+Preserve existing policies.
+
+Do not weaken, remove or replace existing RLS rules as part of this workstream.
+
+## 3.3. Existing functions and security debt
+
+The baseline audit identified 19 existing functions in `public`:
+
+- `_bot_target_for`
+- `_bot_xp_at`
+- `_fill_group_with_bots`
+- `_league_coin_weight`
+- `_league_next`
+- `_league_outcome_for_rank`
+- `_league_rank`
+- `current_league_week`
+- `discover_glossary_term`
+- `finalize_due_league_weeks`
+- `finalize_league_week`
+- `handle_new_user`
+- `handle_new_user_preferences`
+- `increment_user_stat`
+- `join_league_competition`
+- `refresh_bots_in_group`
+- `sync_league_weekly_xp`
+- `update_updated_at_column`
+- `rls_auto_enable`
+
+All 19 had broad EXECUTE ACLs for:
+
+- `PUBLIC`
+- `anon`
+- `authenticated`
+- `service_role`
+
+Nine were SECURITY DEFINER:
+
+- `_fill_group_with_bots`
+- `finalize_due_league_weeks`
+- `finalize_league_week`
+- `handle_new_user`
+- `handle_new_user_preferences`
+- `join_league_competition`
+- `refresh_bots_in_group`
+- `rls_auto_enable`
+- `sync_league_weekly_xp`
+
+This is pre-existing security debt and is outside the scope of the reading workstream.
+
+Do not revoke their grants, rewrite them or otherwise change their security posture without a separate, explicitly authorised and audited decision.
+
+The baseline audit also established:
+
+- `finalize_league_week`, `_fill_group_with_bots` and `refresh_bots_in_group` lack an `auth.uid()` guard.
+- `join_league_competition`, `sync_league_weekly_xp` and `finalize_due_league_weeks` check `auth.uid()`.
+- Trigger and event-trigger functions are invoked through their trigger mechanisms; their direct EXECUTE grants are not equivalent to ordinary client RPC access.
+
+Do not modify these existing functions.
+
+## 3.4. Existing triggers
+
+The baseline included seven non-internal triggers:
+
+- `auth.users` → `handle_new_user()`
+- `auth.users` → `handle_new_user_preferences()`
+- `daily_progress` → `update_updated_at_column()`
+- `lesson_progress` → `update_updated_at_column()`
+- `profiles` → `update_updated_at_column()`
+- `user_records` → `update_updated_at_column()`
+- `user_stats` → `update_updated_at_column()`
+
+Preserve them.
+
+## 3.5. Existing event trigger
+
+An event trigger named `ensure_rls` exists in the live database.
+
+It:
+
+- Runs on `ddl_command_end`.
+- Invokes `public.rls_auto_enable()`.
+- Is owned by `postgres`.
+- Is registered for `CREATE TABLE`, `CREATE TABLE AS` and `SELECT INTO`.
+
+Its registration was not present in the local migration files or local schema dump examined during the earlier audit.
+
+This is known local/live drift.
+
+Do not recreate, remove, modify or attempt to reconcile it as part of this workstream.
+
+Document the drift.
+
+## 3.6. Other database baseline findings
+
+The baseline audit established:
+
+- `public.update_updated_at_column()` exists.
+- Five existing BEFORE UPDATE triggers use it.
+- `gen_random_uuid()` is available in `pg_catalog`.
+- There was no `supabase_migrations` table recording the migration history.
+- Migration execution had been managed directly through the Supabase SQL Editor.
+
+Do not attempt to introduce a migration-history reconciliation process as part of this task.
+
+---
+
+# 4. LOCAL PROJECT FACTS AND CONSTRAINTS
+
+The following facts were established during the previous workstream. Confirm them against supplied files where relevant, but do not unnecessarily ask the operator to repeat checks.
+
+- Local repository: `~/vulanet`
+- GitHub repository: `EnzoFarai/vulanet`
+- Branch: `main`
+- No root `package.json` was present at the time of inspection.
+- No root `vite.config.js` was present.
+- No lockfile was present.
+- `.vite/deps/package.json` is generated Vite metadata, not a root project manifest.
+- `.env` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- No Vercel project had been created.
+
+## 4.1. Supabase client
+
+`src/js/supabase.js` imports the Supabase client from:
+
+`https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm`
+
+Do not change this import as part of the reading workstream unless explicitly authorised.
+
+Vendoring Supabase would require introducing a package manifest and build configuration, expanding the scope.
+
+Document the CDN dependency as a known limitation.
+
+## 4.2. Build pipeline
+
+Because no root build configuration was confirmed, it is not established whether `import.meta.env.VITE_*` resolves correctly in the existing runtime.
+
+Do not claim that it does without testing.
+
+Document the build-pipeline limitation.
+
+Do not introduce a package manifest, build pipeline or new dependency unless the operator explicitly authorises that scope expansion.
+
+## 4.3. Secrets
+
+Never ask the operator to disclose:
+
+- `.env` contents.
+- Supabase URL or keys.
+- Service-role credentials.
+- Passwords.
+- Access tokens.
+- Other secrets.
+
+The existence of `.env` may be acknowledged. Its values must remain private.
+
+Before any Git staging instructions, remind the operator to inspect `.gitignore` and `git status` and ensure `.env` and other secrets are not staged.
+
+---
+
+# 5. LOCKED TECHNICAL ARCHITECTURE AND DESIGN DECISIONS
+
+These decisions were developed through nine planning and review rounds.
+
+Treat them as the agreed technical design.
+
+Do not reopen them merely to propose a different architecture. If an actual supplied file conflicts with the design, identify the discrepancy and ask the operator before changing anything.
+
+## 5.1. URL contracts
+
+Personalised lesson URL:
+
+`/read/{course}/{lesson}.html?view={token}`
+
+The parameter is **`view`**, not `annotations`.
+
+Collection URLs:
+
+- `/bookmarks/{username}`
+- `/highlights/{username}`
+- `/notes/{username}`
+
+These are username-based collection routes. They do not use a collection share token.
+
+There are four distinct sharing actions:
+
+1. **Selected text:** shares the clean lesson URL.
+2. **Lesson:** shares the clean lesson URL.
+3. **Annotated view:** shares the personalised `?view=` URL.
+4. **Collection:** shares the username-based collection URL.
+
+Do not merge these into one generic sharing mechanism.
+
+## 5.2. Annotation-view token format
+
+Tokens must use:
+
+- 128 bits of cryptographic randomness.
+- Base64URL encoding.
+- Exactly 22 characters.
+- PostgreSQL `TEXT`, not `UUID`.
+
+Generation is server-side through:
+
+`public._random_token()`
+
+The function uses:
+
+`extensions.gen_random_bytes(16)`
+
+Do not substitute UUIDv4. UUIDv4 has 122 random bits, not the required 128.
+
+## 5.3. Collection visibility
+
+Collection visibility has exactly two values:
+
+- `private`
+- `public`
+
+Default:
+
+`private`
+
+There is no `restricted` state.
+
+The CHECK constraint must exclude any other value.
+
+`share_collection()` is the intended mechanism for changing a collection to public.
+
+Re-sharing a collection clears `revoked_at`. It does not rotate a token because collection URLs are username-based.
+
+## 5.4. Annotation-link permissions
+
+`reading_annotation_links` is SELECT-only for `authenticated`.
+
+Authenticated client roles must not receive direct:
+
+- INSERT
+- UPDATE
+- DELETE
+
+The intended writers are SECURITY DEFINER triggers and RPCs.
+
+`service_role` has privileged database access. Do not confuse service-role privileges with ordinary client permissions.
+
+## 5.5. Annotation-link lifecycle RPCs
+
+Two lifecycle RPCs were added beyond the earlier v8 design.
+
+### `revoke_annotation_link(course_id, lesson_id)`
+
+- Sets `revoked_at = now()`.
+- Retains the existing token.
+- The old URL must return a revoked status.
+
+### `reshare_annotation_link(course_id, lesson_id)`
+
+- Generates and stores a new token.
+- Clears `revoked_at`.
+- Returns the new token.
+- The previous token remains invalid.
+- Raises if no link exists.
+
+Both are designed as SECURITY DEFINER functions scoped to `auth.uid()`.
+
+Recorded grants:
+
+- Revoke from `PUBLIC` and `anon`.
+- Grant to `authenticated` and `service_role`.
+
+**Service-role caveat:** These lifecycle RPCs require `auth.uid()`. A service-role invocation without a user JWT generally has no authenticated user identity. The grant alone therefore does not establish a usable service-role administration route.
+
+Inspect the actual SQL and document this limitation.
+
+Do not silently change the grants or authentication logic.
+
+## 5.6. New function security
+
+New SECURITY DEFINER functions must use:
+
+`SET search_path = ''`
+
+Schema-qualify references, including:
+
+- `pg_catalog`
+- `public`
+- `extensions`
+- `auth.uid()`
+
+Do not introduce dynamic SQL.
+
+`_random_token()` is intended to be executable only by `service_role`.
+
+Do not grant trigger functions to client roles.
+
+Distinguish direct EXECUTE permissions from the internal invocation of a trigger function by PostgreSQL.
+
+## 5.7. Concurrency behaviour
+
+Use the following accurate description:
+
+- `SELECT ... FOR UPDATE` locks existing rows. It does not lock the absence of a row.
+- First-time concurrent inserts rely on the primary key and `INSERT ... ON CONFLICT DO NOTHING`.
+- If cleanup holds or deletes an existing link while an insert waits, the insert may recreate the link after cleanup commits.
+- Bulk operations involving multiple lessons and different lock orders can deadlock.
+- PostgreSQL aborts one competing transaction. The caller must retry the aborted transaction.
+- Do not claim deadlocks are impossible.
+- Do not claim a deadlock causes data corruption.
+
+The implementation and documentation must reflect these limitations.
+
+## 5.8. CDN dependency
+
+The existing Supabase CDN import remains unchanged.
+
+Do not introduce another CDN or vendor a new dependency.
+
+Document the existing CDN dependency as deferred technical debt.
+
+## 5.9. Migration ordering
+
+Three migration files exist:
+
+```text
+migrations/0012_reading_collections_preflight.sql
+migrations/0012_reading_collections.sql
+migrations/0012_reading_collections_postcheck.sql
+```
+
+Their intended purposes:
+
+1. Read-only preflight diagnostics.
+2. Atomic, fail-loud, additive migration.
+3. Read-only post-migration verification.
+
+There is no `0012b`.
+
+Do not create an `ensure_rls` reconciliation migration.
+
+Do not introduce destructive SQL, including:
+
+- `DROP TABLE`
+- `DROP COLUMN`
+- `CASCADE`
+
+Do not rerun the migration simply because a new chat cannot see the previous SQL Editor session.
+
+## 5.10. SQL style and design requirements
+
+The migration design was reviewed against the following requirements:
+
+- `COALESCE` and `NULLIF` are not schema-qualified.
+- Real functions are schema-qualified where required.
+- Examples include `pg_catalog.length`, `pg_catalog.now`, `pg_catalog.replace`, `pg_catalog.rtrim`, `pg_catalog.encode`, `pg_catalog.jsonb_agg`, `pg_catalog.jsonb_build_object`, `pg_catalog.jsonb_array_length`, `pg_catalog.gen_random_uuid`, `pg_catalog.pg_options_to_table` and `pg_catalog.pg_get_constraintdef`.
+- Highlight-colour CHECK constraints include `color IS NOT NULL`.
+- Tables have explicit grants.
+- `reading_annotation_links` grants only SELECT to `authenticated`.
+- RPCs taking `p_kind` reject NULL.
+- The main migration contains explicit `BEGIN;` and `COMMIT;`.
+- Preflight checks baseline tables, relevant functions, the `pgcrypto` schema, `gen_random_uuid()` and `update_updated_at_column()`.
+- Postcheck is intended to verify SECURITY DEFINER functions have an exactly empty `search_path`.
+- Postcheck is intended to verify exactly 17 authenticated table privileges across the reading tables.
+- Postcheck is intended to verify zero table privileges for `anon` and `PUBLIC`.
+- Token uniqueness is enforced through a UNIQUE constraint, not a redundant separate index.
+
+These are design requirements. Inspect the actual saved SQL before claiming every requirement is satisfied.
+
+---
+
+# 6. THREE SQL FILES — EXECUTION HISTORY AND REMAINING VERIFICATION
+
+Three SQL files were created and saved locally:
+
+1. `0012_reading_collections_preflight.sql`
+2. `0012_reading_collections.sql`
+3. `0012_reading_collections_postcheck.sql`
+
+The operator submitted the SQL through the Supabase SQL Editor.
+
+## 6.1. Recorded execution history
+
+| Step | Recorded outcome |
+|---|---|
+| Preflight | `PROCEED — clean slate; safe to run 0012` |
+| Main migration | `Success. No rows returned` |
+| Postcheck | Complete SQL was pasted and executed in its entirety twice |
+| Visible final postcheck result | `13. baseline tables — PASS` |
+
+The operator clarified that the entire postcheck SQL was executed, not just the final SELECT statement.
+
+However, the postcheck contained multiple SELECT statements. The final visible result alone does not establish that every earlier check passed.
+
+Distinguish the following:
+
+1. The three SQL files were saved locally.
+2. The SQL was submitted through Supabase SQL Editor.
+3. The main migration returned `Success. No rows returned`.
+4. The preflight returned `PROCEED`.
+5. The complete postcheck was run twice.
+6. Only the final visible postcheck result, `13. baseline tables — PASS`, is explicitly confirmed in the recorded history.
+7. Formal v9 design approval has not yet been explicitly confirmed.
+
+Do not describe all postcheck checks as passed.
+
+Do not ask the operator to repeat the migration execution.
+
+## 6.2. Required SQL inspection
+
+If the saved SQL files are supplied, inspect their actual contents.
+
+Compare the actual SQL with §5 and the checks below.
+
+Do not assume the handoff proves that the saved SQL contains the intended design.
+
+Do not reconstruct missing SQL automatically.
+
+If the files are not supplied, ask whether the operator wants to attach the saved copies for inspection.
+
+## 6.3. Known postcheck issues to investigate
+
+The previous review identified potential weaknesses. Verify them against the actual files.
+
+### A. `_random_token` security mode
+
+An earlier postcheck version expected `_random_token` to be INVOKER, whereas the migration design specifies SECURITY DEFINER.
+
+Verify that the postcheck agrees with the actual intended function mode.
+
+### B. Exact empty `search_path`
+
+The postcheck must verify that the setting is exactly empty, not merely that a `search_path` option exists.
+
+The following approach was identified for checking the exact empty value:
+
+```sql
+NOT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_options_to_table(
+    coalesce(p.proconfig, ARRAY[]::text[])
+  )
+  WHERE option_name = 'search_path'
+    AND option_value = ''
+)
+```
+
+Inspect the surrounding query and logic before adopting it.
+
+### C. Exact table names
+
+A condition such as:
+
+```sql
+tablename LIKE 'reading_%'
+```
+
+uses `_` as a wildcard.
+
+Prefer exact table-name comparisons when checking a fixed list.
+
+### D. Function security modes
+
+Verify the nine expected functions:
+
+1. `_random_token` — SECURITY DEFINER
+2. `get_shared_reading_lesson` — SECURITY DEFINER
+3. `get_collection_by_username` — SECURITY DEFINER
+4. `share_collection` — SECURITY INVOKER
+5. `_reading_annotation_links_cleanup` — SECURITY DEFINER trigger function
+6. `_reading_annotations_ensure_link` — SECURITY DEFINER trigger function
+7. `_reading_annotations_identity_guard` — SECURITY DEFINER trigger function
+8. `revoke_annotation_link` — SECURITY DEFINER
+9. `reshare_annotation_link` — SECURITY DEFINER
+
+### E. Trigger coverage
+
+Verify the expected triggers and their function associations.
+
+Expected behaviour includes:
+
+- Annotation-link cleanup after annotation deletion.
+- Annotation-link creation when an annotation is inserted.
+- Annotation identity protection on update.
+- `updated_at` maintenance for relevant reading tables.
+
+Do not guess trigger names.
+
+Verify trigger-to-function associations using PostgreSQL catalog information, including `pg_trigger.tgfoid` joined to `pg_proc`.
+
+### F. Constraints and columns
+
+Verify:
+
+- `ral_token_unique` unique constraint.
+- `rcl_visibility_valid` CHECK constraint.
+- Token column is TEXT, NOT NULL and defaults to `public._random_token()`.
+- `visibility` is TEXT and NOT NULL.
+- `revoked_at` exists where required.
+- Obsolete `token` or `visible` collection columns are absent where the design requires their absence.
+
+### G. Authenticated privileges
+
+Verify exactly 17 expected table privileges:
+
+| Table | Expected authenticated privileges |
+|---|---|
+| `reading_bookmarks` | SELECT, INSERT, UPDATE, DELETE |
+| `reading_annotations` | SELECT, INSERT, UPDATE, DELETE |
+| `reading_annotation_links` | SELECT only |
+| `reading_collection_links` | SELECT, INSERT, UPDATE, DELETE |
+| `reading_collection_order` | SELECT, INSERT, UPDATE, DELETE |
+
+### H. `anon` and `PUBLIC` privileges
+
+Verify zero table privileges for `anon` and `PUBLIC` on the five reading tables.
+
+### I. Function grants
+
+Inspect actual function ACLs and compare them with the intended design.
+
+Do not assume correct table privileges prove that function grants are correct.
+
+### J. Existing baseline
+
+Verify that all 17 original baseline tables remain present.
+
+### K. Service-role lifecycle caveat
+
+Record that `revoke_annotation_link` and `reshare_annotation_link` require `auth.uid()` despite being granted to `service_role`.
+
+Do not silently change the design.
+
+## 6.4. Approval boundary
+
+The next chat must obtain explicit confirmation that the operator formally approves the v9 SQL design as the basis for the application implementation.
+
+The migration has already been executed.
+
+Do not ask the operator to run it again.
+
+Any requested SQL correction must be discussed against the actual saved SQL before any changes are proposed.
+
+Do not execute SQL or replace the migration without explicit approval.
+
+---
+
+# 7. SEVEN APPLICATION FILES
+
+The application implementation consists of seven files.
+
+They have not yet been generated.
+
+| Destination | Purpose |
+|---|---|
+| `src/js/reading-store.js` | Data layer: Supabase calls, `?view=` handling, annotation updates, collection retrieval and lifecycle RPCs |
+| `src/js/reading-annotations.js` | Text selection, toolbar, highlights, notes, colour behaviour and sharing actions |
+| `src/js/reading-collections.js` | Username-based collection retrieval, visitor access handling and collection sharing |
+| `src/styles/reading-annotations.css` | Additive annotation styling, including colour-swap behaviour |
+| `vercel.json` | Preserve existing lesson rewrites and add the three username collection rewrites |
+| `read/g12-life-sciences/dna-location-structure-and-functions.html` | Rebuild the DNA reading page while preserving article content and correcting its structure and image paths |
+| `READING_PATCH_SETUP.md` | Setup, migration workflow, rollback, testing, CDN limitation and existing security debt documentation |
+
+## 7.1. Required responsibilities
+
+### `src/js/reading-store.js`
+
+The data layer must implement the agreed Supabase interactions, including:
+
+- Annotation retrieval and persistence.
+- `?view=` URL handling.
+- `updateAnnotation(id, patch)`.
+- `getCollectionByUsername`.
+- Three-state `sharedLesson` envelope.
+- `revokeAnnotationLink`.
+- `reshareAnnotationLink`.
+
+Do not introduce a collection token.
+
+### `src/js/reading-annotations.js`
+
+The annotation module must implement the intended reading-page interactions, including:
+
+- Text selection toolbar.
+- Highlight creation.
+- Six highlight colours.
+- Note creation and editing.
+- Word-boundary expansion.
+- Asterisk support.
+- Dashed underlines.
+- Four distinct sharing actions.
+- Colour swapping when an existing highlight is clicked.
+- Preservation of annotation IDs and offsets during colour changes.
+- `{status:'revoked'}` handling.
+- `?view=` handling.
+
+The exact user experience must be established using §10.9 and the supplied reference material.
+
+### `src/js/reading-collections.js`
+
+The collection module must:
+
+- Read `?u=`.
+- Call `getCollectionByUsername`.
+- Use uniform `{status:'denied'}` handling.
+- Support `shareCollection`.
+- Respect owner and visitor permissions.
+
+The precise collection-page presentation must be established from the existing pages and reference material.
+
+### `src/styles/reading-annotations.css`
+
+This is additive styling.
+
+The planned change includes `.vr-color-swap` rules only, approximately five lines.
+
+Do not introduce a competing button system or redesign unrelated styles.
+
+### `vercel.json`
+
+Replace the file while preserving both existing `/lesson/*` rewrites byte-identically.
+
+Add the three username collection rewrites:
+
+- `/bookmarks/{username}`
+- `/highlights/{username}`
+- `/notes/{username}`
+
+Inspect the actual existing configuration before editing.
+
+Do not invent additional routes.
+
+### DNA lesson page
+
+Rebuild:
+
+`read/g12-life-sciences/dna-location-structure-and-functions.html`
+
+Requirements:
+
+- Preserve every piece of existing DNA article content.
+- Remove the duplicated tail block.
+- Remove duplicate IDs and duplicate scripts.
+- Correct malformed closing tags in the colour picker.
+- Use lowercase image paths.
+- Preserve existing relevant interactions.
+- Integrate the reading and annotation functionality.
+- Do not fabricate missing quiz questions or lesson data.
+
+### `READING_PATCH_SETUP.md`
+
+Document:
+
+- Architecture.
+- File installation order.
+- Migration workflow.
+- Preflight and postcheck.
+- Rollback approach.
+- Routes.
+- Annotation persistence.
+- Collection permissions.
+- Export behaviour.
+- Testing commands.
+- CDN dependency.
+- Existing database security debt.
+- Known limitations and missing dependencies.
+
+---
+
+# 8. FILES THAT MUST REMAIN UNCHANGED
+
+The following files are outside the seven-file patch and must not be modified:
+
+- `src/js/offline-export.js`
+- `src/styles/reading-collections.css`
+- `src/js/supabase.js` CDN import
+- `bookmarks.html`
+- `highlights.html`
+- `notes.html`
+- `practice-hub.html`
+- Root `g12-life-sciences.html`
+- `pages/profile.html`
+- `read/g12-life-sciences.html`
+- `read/pharmacology-ii.html`
+- `read/g12-life-sciences/introduction-to-nucleic-acids.html`
+- `read/pharmacology-ii/introduction-to-anticoagulants.html`
+- `data/toc/g12-life-sciences.json`
+- `public/assets/icons/phosphor/regular/asterisk.svg`
+
+The following dead-code cleanup is deferred:
+
+- `read/g12-life-sciences/introduction-to-nucleic-acids.html`
+- `read/pharmacology-ii/introduction-to-anticoagulants.html`
+
+Do not modify these files as part of the current patch.
+
+`src/js/offline-export.js` is already considered correct. It provides self-contained ZIP export without CDN or external dependencies. Preserve it.
+
+---
+
+# 9. ASSET AND DATA DEPENDENCIES
+
+## 9.1. Four DNA images
+
+The DNA lesson requires four images under:
+
+`public/assets/images/lessons/g12-life-sciences/dna-location-structure-and-functions/`
+
+Exact lowercase filenames:
+
+```text
+photograph-51.png
+nobel-prize-in-physiology-or-medicine-1962.png
+structure-of-dna.png
+dna-components.jpeg
+```
+
+Vercel runs on Linux, where paths are case-sensitive.
+
+Do not change the filenames or invent replacement images.
+
+## 9.2. Missing DNA quiz data
+
+The following file was absent from the previously inspected project:
+
+`data/lessons/g12-life-sciences/dna-location-structure-and-functions.json`
+
+Do not fabricate quiz questions.
+
+Do not create placeholder questions.
+
+Preserve the existing joystick link to the expected file and report the missing dependency.
+
+## 9.3. Package manifest
+
+There was no root `package.json` during the previous inspection.
+
+Check the supplied project files to establish whether one has since appeared.
+
+Do not introduce a package manifest or build pipeline without explicit authorisation.
+
+---
+
+# 10. ATTACHMENT PROTOCOL AND PROJECT MATERIALS
+
+The operator will provide files in multiple sequential messages, likely because of the 50-file-per-message limit.
+
+**Files may arrive in any order.**
+
+The operator will explicitly say:
+
+**"all files attached"**
+
+Only after that exact signal may the next chat begin the full review.
+
+Until then:
+
+- Acknowledge each attachment batch.
+- Maintain a receipt checklist.
+- Do not review or assess the contents.
+- Do not generate code.
+- Do not make implementation plans.
+- Do not identify a file as missing prematurely.
+- Do not ask for files already received.
+- Do not insist on a particular attachment order.
+
+After "all files attached", compare the received files against the manifest and identify only genuinely missing items.
+
+## 10.1. Files already received in the previous chat
+
+The following files were already supplied to the previous chat. The operator may skip them unless they have changed or the current chat genuinely needs a fresh copy.
+
+### Root files
+
+- `leaderboard.html`
+- `practice-hub.html` (original)
+- `quests.html`
+- `login.html`
+- `registration.html`
+- `registration-completion.html`
+- `onboarding.html`
+- `courses.html`
+- `index.html`
+- `404.html`
+- `vercel.json`
+- `supabase-schema.sql`
+- `README.md`
+
+### Migrations
+
+- `0001`–`0011`
+
+### Data
+
+- `data/toc/g12-life-sciences.json`
+- `data/toc/pharmacology-ii.json`
+- `data/glossary/g12-life-sciences.json`
+- `data/glossary/pharmacology-ii.json`
+- `data/lessons/g12-life-sciences/introduction-to-nucleic-acids.json`
+- All `data/dyk/*.html`
+
+### HTML pages
+
+- `glossary/g12-life-sciences.html`
+- `glossary/pharmacology-ii.html`
+- `read/g12-life-sciences.html`
+- `read/pharmacology-ii.html`
+- `read/g12-life-sciences/introduction-to-nucleic-acids.html`
+- `read/pharmacology-ii/introduction-to-anticoagulants.html`
+
+### Components
+
+- `src/components/header.html`
+- `src/components/footer.html`
+- All `src/components/modals/*.html` (14 files)
+
+### JavaScript
+
+- `achievement-defs.js`
+- `course-data.js`
+- `course-path.js`
+- `daily-goal.js`
+- `date-utils.js`
+- `dyk-map.js`
+- `glossary.js`
+- `glossary-preview.js`
+- `layout.js`
+- `load-components.js`
+- `preferences.js`
+- `profile-utils.js`
+- `quest-defs.js`
+- `quest-engine.js`
+- `quiz-engine.js`
+- `record-defs.js`
+- `supabase.js`
+- `toc-loader.js`
+- `toggle.js`
+
+### Styles
+
+All existing `src/styles/` files except the new `reading-*` files.
+
+### Libraries
+
+- `src/lib/html2canvas.min.js`
+- `src/lib/lottie-player.js`
+- `src/lib/qrcode.min.js`
+
+### Reference material
+
+Five HTML reference demos from the original reading-system specification.
+
+The historical receipt list does not prove that those files are available in the current chat. If a file is necessary and unavailable, request that specific file after the attachment phase.
+
+## 10.2. Remaining files the operator may supply
+
+### Root files
+
+- `.gitignore`
+- `vercel.json`
+- `README.md`
+- `index.html`
+- `courses.html`
+- `login.html`
+- `registration.html`
+- `registration-completion.html`
+- `onboarding.html`
+- `leaderboard.html`
+- `quests.html`
+- `practice-hub.html`
+- `bookmarks.html`
+- `highlights.html`
+- `notes.html`
+- Root `g12-life-sciences.html`
+- Root `pharmacology-ii.html`
+- `404.html`
+
+### SQL files
+
+- `migrations/0012_reading_collections_preflight.sql`
+- `migrations/0012_reading_collections.sql`
+- `migrations/0012_reading_collections_postcheck.sql`
+
+The three files already exist locally. Do not ask the operator to recreate or rerun them.
+
+If they are not available in the new chat, ask whether the operator wants to attach the saved copies for inspection.
+
+### Data
+
+- `data/toc/*.json`
+- `data/glossary/*.json`
+- `data/lessons/g12-life-sciences/*.json`
+- `data/dyk/*.html`
+
+### Pages
+
+Relevant files under:
+
+- `pages/`
+- `read/`
+- `glossary/`
+
+### Public assets
+
+Directory listings only for:
+
+- `public/assets/fonts/`
+- `public/assets/icons/`
+- `public/assets/courses/`
+- `public/assets/lottie/`
+- `public/assets/audio/`
+- `public/assets/countries/`
+- `public/assets/images/`
+
+Actual file contents only for:
+
+- `public/assets/fonts/fonts.css`
+- `public/assets/lottie/*.json`
+- `public/assets/icons/phosphor/regular/asterisk.svg`
+
+Do not ask for every image, audio file, font or icon.
+
+### Source files
+
+Relevant files under:
+
+- `src/js/`
+- `src/styles/`
+- `src/components/`
+- `src/lib/`
+
+### Reference demos
+
+The five HTML reference demos from the original reading-system specification.
+
+### Operator's own drafts
+
+The operator may supply drafts generated during other ChatGPT sessions.
+
+Treat these as material to assess, not authoritative implementations.
+
+Compare them against:
+
+- The functional specification.
+- The reference demos.
+- The actual project files.
+- The locked architecture.
+- The saved SQL.
+- Security and persistence requirements.
+
+Explain material discrepancies before proceeding.
+
+---
+
+# 10.3. ORIGINAL FUNCTIONAL SPECIFICATION — READING, BOOKMARKS, HIGHLIGHTS AND NOTES
+
+This section is essential.
+
+The technical architecture in §5 explains how the system should work internally. It does not fully specify every user interaction or the intended appearance of the interfaces.
+
+The next chat must establish the actual user experience using the operator's original functional requirements, reference demonstrations and existing Vulanet files.
+
+**Do not invent missing behaviour. Do not assume that a technically convenient implementation is the intended experience.**
+
+## 10.3.1. Sources of truth
+
+Use these sources in the following order:
+
+1. Explicit operator instructions and functional specifications.
+2. The five original HTML reference demonstrations.
+3. Existing Vulanet pages, JavaScript, CSS and shared components.
+4. The technical decisions in this handoff.
+
+If sources conflict, identify the conflict and ask the operator.
+
+Do not silently choose an interpretation.
+
+Reference demos may illustrate intended functionality without representing the final production implementation. Preserve their functional intent while integrating with Vulanet.
+
+## 10.3.2. Reading experience
+
+Inspect the existing reading pages and establish:
+
+- How users navigate from a course or course contents page into a lesson.
+- How lesson content is structured and displayed.
+- How headings, paragraphs, images, diagrams, lists and other article elements are presented.
+- How the page identifies its course and lesson.
+- How the reading page integrates with Vulanet's header, footer and layout.
+- How users access bookmarks, highlights and notes while reading.
+- How text selection works.
+- How reading actions behave on desktop and smaller screens.
+- How existing lesson content and links are preserved.
+
+Do not rewrite article content merely to make implementation easier.
+
+The DNA lesson page must preserve all existing article content while correcting its duplicated tail, malformed HTML and image paths.
+
+## 10.3.3. Bookmarks
+
+Inspect `bookmarks.html`, the reference demos, reading pages and related code.
+
+Establish the intended bookmark experience, including:
+
+- How a user bookmarks a lesson or reading item.
+- Whether the action is available from the reading page, toolbar, menu or another interface.
+- How the user knows an item has been bookmarked.
+- How a user removes an existing bookmark.
+- Whether the bookmark action toggles between bookmarked and unbookmarked states.
+- How bookmarks appear on the bookmarks collection page.
+- What information each bookmark displays.
+- How users navigate from a bookmark to its original lesson.
+- Whether bookmarks are grouped, sorted, filtered or searched.
+- How duplicate bookmarks are prevented or handled.
+- How empty, loading and error states are presented.
+- How signed-out and authenticated users are handled.
+
+Do not assume bookmarks are annotations. They are a separate reading feature with their own persistence and collection behaviour.
+
+Use the agreed `reading_bookmarks` database design.
+
+Do not invent additional bookmark fields or organisation features unless supported by the supplied materials or confirmed by the operator.
+
+## 10.3.4. Highlights
+
+Inspect the reference demos, reading pages and stylesheets.
+
+Establish:
+
+- How a user selects text.
+- How the selection toolbar appears and behaves.
+- How a highlight is created.
+- How selected text is associated with its original lesson and position.
+- How a saved highlight appears in the lesson.
+- How a user changes the highlight colour.
+- How a highlight is removed.
+- Whether clicking an existing highlight opens an action menu.
+- How highlight actions interact with the original text selection.
+- How highlights appear on the highlights collection page.
+- How users navigate from a collection item to the original highlighted passage.
+- How multiple highlights within a lesson are handled.
+- How overlapping or adjacent selections are handled.
+- How loading, saving, failure and denied states are displayed.
+
+The agreed technical design includes:
+
+- Six highlight colours.
+- Word-boundary expansion.
+- Asterisk support.
+- Dashed underlines.
+- Colour swapping when an existing highlight is clicked.
+- Preservation of annotation IDs and offsets when changing colour.
+
+A colour change must not accidentally create a duplicate annotation, change its identity or corrupt its original text offsets.
+
+Do not report a highlight as saved until the database write succeeds.
+
+## 10.3.5. Notes
+
+Inspect the reference demos, reading pages and associated code.
+
+Establish:
+
+- How a user creates a note.
+- Whether a note is attached to selected text, a passage, a lesson or another location.
+- How the note editor opens.
+- How note content is entered and saved.
+- How an existing note appears in the lesson.
+- How a user edits an existing note.
+- How a user deletes a note.
+- How a note is associated with its original lesson and position.
+- How notes appear on the notes collection page.
+- How users navigate from a collection item back to its original lesson and location.
+- How multiple notes in one lesson are handled.
+- How the interface distinguishes notes from highlights.
+- How loading, saving, failure and denied states are displayed.
+
+The annotation model distinguishes:
+
+- `highlight`
+- `note`
+
+Do not merge them into one indistinguishable annotation type.
+
+Respect the database constraints governing note content and annotation identity.
+
+Do not invent rich-text formatting, folders or other note functionality unless supported by the supplied requirements or confirmed by the operator.
+
+## 10.3.6. Collection pages
+
+The three collection pages are:
+
+- `bookmarks.html`
+- `highlights.html`
+- `notes.html`
+
+Inspect their actual markup and reference demonstrations.
+
+Establish:
+
+- Page layout.
+- Headings and navigation.
+- Collection item presentation.
+- Action menus.
+- Sorting, grouping and filtering, if specified.
+- Empty states.
+- Loading states.
+- Error states.
+- Responsive behaviour.
+- Shared header and footer integration.
+- Owner behaviour.
+- Visitor behaviour for another user's public collection.
+
+Do not create three unrelated interfaces if the existing project establishes a shared collection design.
+
+Equally, do not force identical interactions where the intended behaviour differs.
+
+Reuse existing components and styles where appropriate.
+
+## 10.3.7. Public collection visitor experience
+
+The collection routes are:
+
+- `/bookmarks/{username}`
+- `/highlights/{username}`
+- `/notes/{username}`
+
+The visibility model is:
+
+- `private`
+- `public`
+
+The default is private.
+
+Inspect the supplied material to establish:
+
+- How the collection owner's username is displayed.
+- How the collection type is identified.
+- How collection items are presented to visitors.
+- Whether visitors can navigate to the original public lesson.
+- Which actions are available to visitors.
+- Which owner-only controls must be hidden.
+- How private collections are handled.
+- How unavailable users or collections are handled.
+- How empty collections are displayed.
+
+Do not expose private collection contents.
+
+Do not allow visitors to modify another user's bookmarks, highlights or notes.
+
+The intended retrieval mechanism is:
+
+`get_collection_by_username(text,text)`
+
+The collection page must respect the returned access status.
+
+Use the agreed uniform `{status:'denied'}` handling.
+
+Do not leak whether a private collection exists through inconsistent client-side messages.
+
+## 10.3.8. Annotation sharing and shared lesson views
+
+The four sharing actions are specified in §5.1:
+
+1. Selected text — clean lesson URL.
+2. Lesson — clean lesson URL.
+3. Annotated view — personalised `?view={token}` URL.
+4. Collection — username-based collection URL.
+
+Inspect the reference demonstrations and existing interface to establish where these actions appear, how users invoke them and what feedback is displayed.
+
+The personalised lesson URL is:
+
+`/read/{course}/{lesson}.html?view={token}`
+
+The parameter must remain `view`.
+
+The annotated-view link allows a visitor to see the permitted shared annotation view without receiving access to the owner's account or private collection-management controls.
+
+Respect the token lifecycle:
+
+- Tokens are generated server-side.
+- Revocation invalidates the shared view.
+- Re-sharing rotates the token.
+- The previous token must not become valid again.
+- Revoked links must return the agreed `{status:'revoked'}` state.
+
+Do not implement collection sharing using annotation-view tokens.
+
+## 10.3.9. Persistence and authentication
+
+Across bookmarks, highlights and notes:
+
+- Supabase is canonical for authenticated users.
+- LocalStorage is for UI-state caching only.
+- Annotation content must not be treated as permanently saved merely because it exists in LocalStorage.
+- Confirm successful database writes before showing a saved state.
+- Failed writes must show an appropriate failure state.
+- Loading and pending states must be distinguishable from successful saves.
+- Private data must not be exposed.
+- Frontend access must agree with database RLS and RPC permissions.
+
+Inspect actual SQL and frontend calls.
+
+Do not assume that a database function's existence proves that frontend integration is correct.
+
+## 10.3.10. Interaction inventory
+
+Before generating application files, prepare a concise functional inventory.
+
+| Feature | Actions to establish |
+|---|---|
+| Bookmarks | Create, display, navigate, remove and share where applicable |
+| Highlights | Select, create, display, recolour, remove and navigate |
+| Notes | Create, display, edit, save, delete and navigate |
+| Reading page | Navigate, select text, open annotation actions and load shared views |
+| Collections | Display, sort or filter where specified, navigate, share and handle access states |
+| Public collections | View permitted content, navigate and enforce read-only visitor access |
+| Shared lesson views | Open token URL, display permitted annotations and handle revoked or invalid tokens |
+
+For every action, establish:
+
+1. The user interaction that initiates it.
+2. The relevant page or component.
+3. The responsible JavaScript function.
+4. The database operation or RPC, if applicable.
+5. The expected successful result.
+6. The expected failure or denied result.
+7. Whether the action is available to the owner, authenticated users or public visitors.
+
+Include only behaviour supported by supplied materials or explicitly confirmed by the operator.
+
+If a behaviour cannot be established, list it as unresolved and ask the operator about that specific point.
+
+## 10.3.11. Visual consistency
+
+The implementation must fit the existing Vulanet interface.
+
+Inspect stylesheets and reference demos before creating new styling.
+
+Preserve:
+
+- Typography.
+- Existing design conventions.
+- Button styles.
+- Layout conventions.
+- Shared components.
+- Navigation behaviour.
+- Responsive patterns.
+
+Use `buttons.css` for buttons.
+
+Do not introduce a competing visual system or redesign unrelated areas of the platform.
+
+## 10.3.12. Required functional understanding before implementation
+
+Before generating any of the seven application files, be able to explain:
+
+1. How users bookmark a lesson and manage bookmarks.
+2. How users select text and create highlights.
+3. How users change or remove highlights.
+4. How users create, edit and delete notes.
+5. How bookmarks, highlights and notes appear in their respective collection pages.
+6. How users navigate from collection items back to original lessons and passages.
+7. How public collections appear to visitors.
+8. How private collections are protected.
+9. How annotation-view sharing works.
+10. How the reading page handles saved, revoked and unavailable shared views.
+11. How these interactions map to the actual database schema and RPCs.
+
+This explanation must be grounded in the supplied project files and reference material.
+
+Do not invent missing requirements.
+
+The operator must review and approve the functional understanding before implementation.
+
+---
+
+# 10.4. PROJECT TREE — STRUCTURAL REFERENCE
+
+**Retain the complete project tree from the operator's original handoff here.**
+
+The project tree must be preserved verbatim. Do not replace it with an abbreviated tree or invent entries.
+
+├── data/
+│   ├── dyk/
+│   │   ├── biology.html
+│   │   ├── business.html
+│   │   ├── chemistry.html
+│   │   ├── computer-science.html
+│   │   ├── engineering.html
+│   │   ├── general.html
+│   │   ├── humanities.html
+│   │   ├── law.html
+│   │   ├── mathematics.html
+│   │   ├── medicine.html
+│   │   └── physics.html
+│   ├── glossary/
+│   │   ├── g12-life-sciences.json
+│   │   └── pharmacology-ii.json
+│   ├── lessons/
+│   │   └── g12-life-sciences/
+│   │       └── introduction-to-nucleic-acids.json
+│   └── toc/
+│       ├── g12-life-sciences.json
+│       └── pharmacology-ii.json
+├── glossary/
+│   ├── g12-life-sciences.html
+│   └── pharmacology-ii.html
+├── migrations/
+│   ├── 0001_daily_progress.sql
+│   ├── 0002_profiles_daily_goal.sql
+│   ├── 0003_follows.sql
+│   ├── 0004_quest_suggestion_dismissals.sql
+│   ├── 0005_user_stats_additions.sql
+│   ├── 0006_migrate_timezone_offsets.sql
+│   ├── 0007_high_accuracy_90.sql
+│   ├── 0008_achievement_counters.sql
+│   ├── 0009_glossary_discoveries.sql
+│   ├── 0010_leagues.sql
+│   ├── 0011_leagues_claim_rls.sql
+│   ├── 0012_reading_collections_postcheck.sql
+│   ├── 0012_reading_collections_preflight.sql
+│   └── 0012_reading_collections.sql
+├── pages/
+│   ├── settings/
+│   │   ├── account.html
+│   │   ├── courses.html
+│   │   ├── notifications.html
+│   │   ├── privacy.html
+│   │   └── profile.html
+│   ├── lesson.html
+│   ├── loading.html
+│   ├── profile.html
+│   └── settings.html
+├── public/
+│   └── assets/
+│       ├── audio/
+│       │   ├── achievement.mp3
+│       │   ├── boost.mp3
+│       │   ├── clapping.mp3
+│       │   ├── coins.mp3
+│       │   ├── complete.mp3
+│       │   ├── correct.mp3
+│       │   ├── heartbeat.mp3
+│       │   ├── incorrect.mp3
+│       │   ├── out-of-hearts.mp3
+│       │   ├── quest.mp3
+│       │   ├── quit.mp3
+│       │   ├── rewind.mp3
+│       │   └── streak.mp3
+│       ├── countries/
+│       │   ├── ad.svg
+│       │   ├── ae.svg
+│       │   ├── af.svg
+│       │   ├── ag.svg
+│       │   ├── ai.svg
+│       │   ├── al.svg
+│       │   ├── am.svg
+│       │   ├── ao.svg
+│       │   ├── aq.svg
+│       │   ├── ar.svg
+│       │   ├── as.svg
+│       │   ├── at.svg
+│       │   ├── au.svg
+│       │   ├── aw.svg
+│       │   ├── ax.svg
+│       │   ├── az.svg
+│       │   ├── ba.svg
+│       │   ├── bb.svg
+│       │   ├── bd.svg
+│       │   ├── be.svg
+│       │   ├── bf.svg
+│       │   ├── bg.svg
+│       │   ├── bh.svg
+│       │   ├── bi.svg
+│       │   ├── bj.svg
+│       │   ├── bl.svg
+│       │   ├── bm.svg
+│       │   ├── bn.svg
+│       │   ├── bo.svg
+│       │   ├── bq.svg
+│       │   ├── br.svg
+│       │   ├── bs.svg
+│       │   ├── bt.svg
+│       │   ├── bv.svg
+│       │   ├── bw.svg
+│       │   ├── by.svg
+│       │   ├── bz.svg
+│       │   ├── ca.svg
+│       │   ├── cc.svg
+│       │   ├── cd.svg
+│       │   ├── cf.svg
+│       │   ├── cg.svg
+│       │   ├── ch.svg
+│       │   ├── ci.svg
+│       │   ├── ck.svg
+│       │   ├── cl.svg
+│       │   ├── cm.svg
+│       │   ├── cn.svg
+│       │   ├── co.svg
+│       │   ├── cr.svg
+│       │   ├── cu.svg
+│       │   ├── cv.svg
+│       │   ├── cw.svg
+│       │   ├── cx.svg
+│       │   ├── cy.svg
+│       │   ├── cz.svg
+│       │   ├── de.svg
+│       │   ├── dj.svg
+│       │   ├── dk.svg
+│       │   ├── dm.svg
+│       │   ├── do.svg
+│       │   ├── dz.svg
+│       │   ├── ec.svg
+│       │   ├── ee.svg
+│       │   ├── eg.svg
+│       │   ├── eh.svg
+│       │   ├── er.svg
+│       │   ├── es.svg
+│       │   ├── et.svg
+│       │   ├── eu.svg
+│       │   ├── fi.svg
+│       │   ├── fj.svg
+│       │   ├── fk.svg
+│       │   ├── fm.svg
+│       │   ├── fo.svg
+│       │   ├── fr.svg
+│       │   ├── ga.svg
+│       │   ├── gb-eng.svg
+│       │   ├── gb-nir.svg
+│       │   ├── gb-sct.svg
+│       │   ├── gb-wls.svg
+│       │   ├── gb.svg
+│       │   ├── gd.svg
+│       │   ├── ge.svg
+│       │   ├── gf.svg
+│       │   ├── gg.svg
+│       │   ├── gh.svg
+│       │   ├── gi.svg
+│       │   ├── gl.svg
+│       │   ├── gm.svg
+│       │   ├── gn.svg
+│       │   ├── gp.svg
+│       │   ├── gq.svg
+│       │   ├── gr.svg
+│       │   ├── gs.svg
+│       │   ├── gt.svg
+│       │   ├── gu.svg
+│       │   ├── gw.svg
+│       │   ├── gy.svg
+│       │   ├── hk.svg
+│       │   ├── hm.svg
+│       │   ├── hn.svg
+│       │   ├── hr.svg
+│       │   ├── ht.svg
+│       │   ├── hu.svg
+│       │   ├── id.svg
+│       │   ├── ie.svg
+│       │   ├── il.svg
+│       │   ├── im.svg
+│       │   ├── in.svg
+│       │   ├── io.svg
+│       │   ├── iq.svg
+│       │   ├── ir.svg
+│       │   ├── is.svg
+│       │   ├── it.svg
+│       │   ├── je.svg
+│       │   ├── jm.svg
+│       │   ├── jo.svg
+│       │   ├── jp.svg
+│       │   ├── ke.svg
+│       │   ├── kg.svg
+│       │   ├── kh.svg
+│       │   ├── ki.svg
+│       │   ├── km.svg
+│       │   ├── kn.svg
+│       │   ├── kp.svg
+│       │   ├── kr.svg
+│       │   ├── kw.svg
+│       │   ├── ky.svg
+│       │   ├── kz.svg
+│       │   ├── la.svg
+│       │   ├── lb.svg
+│       │   ├── lc.svg
+│       │   ├── li.svg
+│       │   ├── lk.svg
+│       │   ├── lr.svg
+│       │   ├── ls.svg
+│       │   ├── lt.svg
+│       │   ├── lu.svg
+│       │   ├── lv.svg
+│       │   ├── ly.svg
+│       │   ├── ma.svg
+│       │   ├── mc.svg
+│       │   ├── md.svg
+│       │   ├── me.svg
+│       │   ├── mf.svg
+│       │   ├── mg.svg
+│       │   ├── mh.svg
+│       │   ├── mk.svg
+│       │   ├── ml.svg
+│       │   ├── mm.svg
+│       │   ├── mn.svg
+│       │   ├── mo.svg
+│       │   ├── mp.svg
+│       │   ├── mq.svg
+│       │   ├── mr.svg
+│       │   ├── ms.svg
+│       │   ├── mt.svg
+│       │   ├── mu.svg
+│       │   ├── mv.svg
+│       │   ├── mw.svg
+│       │   ├── mx.svg
+│       │   ├── my.svg
+│       │   ├── mz.svg
+│       │   ├── na.svg
+│       │   ├── nc.svg
+│       │   ├── ne.svg
+│       │   ├── nf.svg
+│       │   ├── ng.svg
+│       │   ├── ni.svg
+│       │   ├── nl.svg
+│       │   ├── no.svg
+│       │   ├── np.svg
+│       │   ├── nr.svg
+│       │   ├── nu.svg
+│       │   ├── nz.svg
+│       │   ├── om.svg
+│       │   ├── pa.svg
+│       │   ├── pe.svg
+│       │   ├── pf.svg
+│       │   ├── pg.svg
+│       │   ├── ph.svg
+│       │   ├── pk.svg
+│       │   ├── pl.svg
+│       │   ├── pm.svg
+│       │   ├── pn.svg
+│       │   ├── pr.svg
+│       │   ├── ps.svg
+│       │   ├── pt.svg
+│       │   ├── pw.svg
+│       │   ├── py.svg
+│       │   ├── qa.svg
+│       │   ├── re.svg
+│       │   ├── ro.svg
+│       │   ├── rs.svg
+│       │   ├── ru.svg
+│       │   ├── rw.svg
+│       │   ├── sa.svg
+│       │   ├── sb.svg
+│       │   ├── sc.svg
+│       │   ├── sd.svg
+│       │   ├── se.svg
+│       │   ├── sg.svg
+│       │   ├── sh.svg
+│       │   ├── si.svg
+│       │   ├── sj.svg
+│       │   ├── sk.svg
+│       │   ├── sl.svg
+│       │   ├── sm.svg
+│       │   ├── sn.svg
+│       │   ├── so.svg
+│       │   ├── sr.svg
+│       │   ├── ss.svg
+│       │   ├── st.svg
+│       │   ├── sv.svg
+│       │   ├── sx.svg
+│       │   ├── sy.svg
+│       │   ├── sz.svg
+│       │   ├── tc.svg
+│       │   ├── td.svg
+│       │   ├── tf.svg
+│       │   ├── tg.svg
+│       │   ├── th.svg
+│       │   ├── tj.svg
+│       │   ├── tk.svg
+│       │   ├── tl.svg
+│       │   ├── tm.svg
+│       │   ├── tn.svg
+│       │   ├── to.svg
+│       │   ├── tr.svg
+│       │   ├── tt.svg
+│       │   ├── tv.svg
+│       │   ├── tw.svg
+│       │   ├── tz.svg
+│       │   ├── ua.svg
+│       │   ├── ug.svg
+│       │   ├── um.svg
+│       │   ├── us.svg
+│       │   ├── uy.svg
+│       │   ├── uz.svg
+│       │   ├── va.svg
+│       │   ├── vc.svg
+│       │   ├── ve.svg
+│       │   ├── vg.svg
+│       │   ├── vi.svg
+│       │   ├── vn.svg
+│       │   ├── vu.svg
+│       │   ├── wf.svg
+│       │   ├── ws.svg
+│       │   ├── xk.svg
+│       │   ├── ye.svg
+│       │   ├── yt.svg
+│       │   ├── za.svg
+│       │   ├── zm.svg
+│       │   └── zw.svg
+│       ├── courses/
+│       │   ├── clinical-pharmacy.png
+│       │   ├── financial-accounting.png
+│       │   ├── g12-life-sciences.png
+│       │   ├── international-law.png
+│       │   ├── java-programming.png
+│       │   ├── pharmacology-ii.png
+│       │   └── web-design.png
+│       ├── fonts/
+│       │   ├── atkinson-hyperlegible-next/
+│       │   │   ├── atkinson-hyperlegible-next-latin-200-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-200-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-200-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-200-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-300-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-300-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-300-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-300-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-400-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-400-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-400-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-400-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-500-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-500-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-500-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-500-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-600-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-600-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-600-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-600-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-700-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-700-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-700-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-700-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-800-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-800-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-800-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-800-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-200-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-200-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-200-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-200-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-300-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-300-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-300-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-300-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-400-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-400-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-400-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-400-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-500-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-500-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-500-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-500-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-600-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-600-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-600-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-600-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-700-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-700-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-700-normal.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-700-normal.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-800-italic.woff
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-800-italic.woff2
+│       │   │   ├── atkinson-hyperlegible-next-latin-ext-800-normal.woff
+│       │   │   └── atkinson-hyperlegible-next-latin-ext-800-normal.woff2
+│       │   ├── bricolage-grotesque/
+│       │   │   ├── bricolage-grotesque-latin-200-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-200-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-300-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-300-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-400-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-400-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-500-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-500-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-600-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-600-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-700-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-700-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-800-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-800-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-200-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-200-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-300-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-300-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-400-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-400-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-500-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-500-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-600-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-600-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-700-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-700-normal.woff2
+│       │   │   ├── bricolage-grotesque-latin-ext-800-normal.woff
+│       │   │   ├── bricolage-grotesque-latin-ext-800-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-200-normal.woff
+│       │   │   ├── bricolage-grotesque-vietnamese-200-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-300-normal.woff
+│       │   │   ├── bricolage-grotesque-vietnamese-300-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-400-normal.woff
+│       │   │   ├── bricolage-grotesque-vietnamese-400-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-500-normal.woff
+│       │   │   ├── bricolage-grotesque-vietnamese-500-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-600-normal.woff
+│       │   │   ├── bricolage-grotesque-vietnamese-600-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-700-normal.woff
+│       │   │   ├── bricolage-grotesque-vietnamese-700-normal.woff2
+│       │   │   ├── bricolage-grotesque-vietnamese-800-normal.woff
+│       │   │   └── bricolage-grotesque-vietnamese-800-normal.woff2
+│       │   └── fonts.css
+│       ├── icons/
+│       │   ├── material-symbols/
+│       │   │   ├── fill/
+│       │   │   │   ├── check_circle.svg
+│       │   │   │   ├── error.svg
+│       │   │   │   ├── exercise.svg
+│       │   │   │   └── recommend.svg
+│       │   │   └── outline/
+│       │   │       ├── arrow_shape_up_stack_2.svg
+│       │   │       ├── assignment_turned_in.svg
+│       │   │       ├── auto_awesome.svg
+│       │   │       ├── auto_stories.svg
+│       │   │       ├── award_star.svg
+│       │   │       ├── cancel.svg
+│       │   │       ├── check_circle.svg
+│       │   │       ├── cheer.svg
+│       │   │       ├── close.svg
+│       │   │       ├── coffee.svg
+│       │   │       ├── cognition_2.svg
+│       │   │       ├── cognition.svg
+│       │   │       ├── date_range.svg
+│       │   │       ├── delete.svg
+│       │   │       ├── dictionary.svg
+│       │   │       ├── diversity_2.svg
+│       │   │       ├── download.svg
+│       │   │       ├── drive_file_move.svg
+│       │   │       ├── error.svg
+│       │   │       ├── exercise.svg
+│       │   │       ├── flag_circle.svg
+│       │   │       ├── folder.svg
+│       │   │       ├── ink_eraser.svg
+│       │   │       ├── joystick.svg
+│       │   │       ├── link.svg
+│       │   │       ├── live_tv.svg
+│       │   │       ├── military_tech.svg
+│       │   │       ├── more_horiz.svg
+│       │   │       ├── my_location.svg
+│       │   │       ├── newsmode.svg
+│       │   │       ├── notifications.svg
+│       │   │       ├── owl.svg
+│       │   │       ├── pending.svg
+│       │   │       ├── quiz.svg
+│       │   │       ├── recommend.svg
+│       │   │       ├── reorder.svg
+│       │   │       ├── routine.svg
+│       │   │       ├── school.svg
+│       │   │       ├── share.svg
+│       │   │       ├── sms.svg
+│       │   │       ├── sprint.svg
+│       │   │       ├── stylus_note.svg
+│       │   │       ├── undo.svg
+│       │   │       └── upload.svg
+│       │   ├── phosphor/
+│       │   │   ├── bold/
+│       │   │   │   ├── bell-ringing.svg
+│       │   │   │   ├── bell.svg
+│       │   │   │   ├── book-open-text.svg
+│       │   │   │   ├── clock-countdown.svg
+│       │   │   │   ├── house-line.svg
+│       │   │   │   ├── magnifying-glass.svg
+│       │   │   │   ├── notebook.svg
+│       │   │   │   ├── ranking.svg
+│       │   │   │   ├── treasure-chest.svg
+│       │   │   │   └── user.svg
+│       │   │   ├── duotone/
+│       │   │   │   ├── book-open-user.svg
+│       │   │   │   ├── book-open.svg
+│       │   │   │   ├── bookmark-simple.svg
+│       │   │   │   ├── bookmarks-simple.svg
+│       │   │   │   ├── brain.svg
+│       │   │   │   ├── briefcase.svg
+│       │   │   │   ├── clock-countdown.svg
+│       │   │   │   ├── coin-vertical.svg
+│       │   │   │   ├── coins.svg
+│       │   │   │   ├── confetti.svg
+│       │   │   │   ├── crosshair.svg
+│       │   │   │   ├── eraser.svg
+│       │   │   │   ├── eye-closed.svg
+│       │   │   │   ├── eye.svg
+│       │   │   │   ├── fire.svg
+│       │   │   │   ├── flag-checkered.svg
+│       │   │   │   ├── gift.svg
+│       │   │   │   ├── graduation-cap.svg
+│       │   │   │   ├── heart.svg
+│       │   │   │   ├── highlighter.svg
+│       │   │   │   ├── lightning.svg
+│       │   │   │   ├── lock-key.svg
+│       │   │   │   ├── medal.svg
+│       │   │   │   ├── newspaper.svg
+│       │   │   │   ├── note-pencil.svg
+│       │   │   │   ├── notebook.svg
+│       │   │   │   ├── rocket-launch.svg
+│       │   │   │   ├── target.svg
+│       │   │   │   ├── television.svg
+│       │   │   │   ├── toggle-left.svg
+│       │   │   │   ├── toggle-right.svg
+│       │   │   │   ├── treasure-chest.svg
+│       │   │   │   ├── trophy.svg
+│       │   │   │   └── users.svg
+│       │   │   ├── fill/
+│       │   │   │   ├── bell-ringing.svg
+│       │   │   │   ├── bell.svg
+│       │   │   │   ├── bookmarks.svg
+│       │   │   │   ├── check-fat.svg
+│       │   │   │   ├── coin-vertical.svg
+│       │   │   │   ├── dots-three-circle.svg
+│       │   │   │   ├── fire.svg
+│       │   │   │   ├── first-aid.svg
+│       │   │   │   ├── graduation-cap.svg
+│       │   │   │   ├── heart.svg
+│       │   │   │   ├── highlighter.svg
+│       │   │   │   ├── lightbulb-filament.svg
+│       │   │   │   ├── lightning.svg
+│       │   │   │   ├── lock-key.svg
+│       │   │   │   ├── medal.svg
+│       │   │   │   ├── rabbit-blue.svg
+│       │   │   │   ├── rabbit-fill.svg
+│       │   │   │   ├── rabbit.svg
+│       │   │   │   ├── share-network.svg
+│       │   │   │   └── trophy.svg
+│       │   │   └── regular/
+│       │   │       ├── arrow-down.svg
+│       │   │       ├── arrow-left.svg
+│       │   │       ├── arrow-right.svg
+│       │   │       ├── arrow-up.svg
+│       │   │       ├── bell-ringing.svg
+│       │   │       ├── bell.svg
+│       │   │       ├── book-open.svg
+│       │   │       ├── bookmarks.svg
+│       │   │       ├── brain.svg
+│       │   │       ├── briefcase.svg
+│       │   │       ├── calendar.svg
+│       │   │       ├── caret-down.svg
+│       │   │       ├── caret-right.svg
+│       │   │       ├── caret-up.svg
+│       │   │       ├── chart-bar.svg
+│       │   │       ├── check.svg
+│       │   │       ├── clock-countdown.svg
+│       │   │       ├── coin-vertical.svg
+│       │   │       ├── confetti.svg
+│       │   │       ├── copy.svg
+│       │   │       ├── dots-three-circle.svg
+│       │   │       ├── dots-three.svg
+│       │   │       ├── download.svg
+│       │   │       ├── export.svg
+│       │   │       ├── eye-closed.svg
+│       │   │       ├── eye.svg
+│       │   │       ├── fire.svg
+│       │   │       ├── flag-checkered.svg
+│       │   │       ├── flag.svg
+│       │   │       ├── gear-six.svg
+│       │   │       ├── gift.svg
+│       │   │       ├── graduation-cap.svg
+│       │   │       ├── heart.svg
+│       │   │       ├── highlighter.svg
+│       │   │       ├── house-line.svg
+│       │   │       ├── info.svg
+│       │   │       ├── lightning.svg
+│       │   │       ├── list-magnifying-glass.svg
+│       │   │       ├── lock-key.svg
+│       │   │       ├── magnifying-glass.svg
+│       │   │       ├── medal.svg
+│       │   │       ├── minus.svg
+│       │   │       ├── note-pencil.svg
+│       │   │       ├── notebook.svg
+│       │   │       ├── pencil-simple.svg
+│       │   │       ├── plus.svg
+│       │   │       ├── question.svg
+│       │   │       ├── rabbit.svg
+│       │   │       ├── ranking.svg
+│       │   │       ├── rocket-launch.svg
+│       │   │       ├── share.svg
+│       │   │       ├── target.svg
+│       │   │       ├── toggle-left.svg
+│       │   │       ├── toggle-right.svg
+│       │   │       ├── trash.svg
+│       │   │       ├── treasure-chest.svg
+│       │   │       ├── trophy.svg
+│       │   │       ├── upload.svg
+│       │   │       ├── user.svg
+│       │   │       ├── users.svg
+│       │   │       ├── warning.svg
+│       │   │       └── x.svg
+│       │   └── social/
+│       │       ├── facebook-brands-solid-full.svg
+│       │       ├── facebook-full.svg
+│       │       ├── google-full.svg
+│       │       ├── google-icon.svg
+│       │       ├── instagram-brands-solid-full.svg
+│       │       ├── instagram-full.svg
+│       │       ├── tiktok-brands-solid-full.svg
+│       │       ├── tiktok-full.svg
+│       │       ├── whatsapp.svg
+│       │       ├── x-twitter-brands-solid-full.svg
+│       │       ├── x-twitter.svg
+│       │       ├── youtube-brands-solid-full.svg
+│       │       └── youtube-full.svg
+│       ├── images/
+│       │   └── lessons/
+│       │       └── g12-life-sciences/
+│       │           └── introduction-to-nucleic-acids/
+│       │               ├── basic-nucleotide.png
+│       │               ├── cell-nucleus-parts.jpg
+│       │               ├── cell-structure.png
+│       │               └── image-004.jpg
+│       └── lottie/
+│           ├── 1f494.json
+│           ├── 1f525-static.png
+│           ├── 1f525.json
+│           ├── 1f627.json
+│           └── 1f973.json
+├── read/
+│   ├── g12-life-sciences/
+│   │   └── introduction-to-nucleic-acids.html
+│   ├── pharmacology-ii/
+│   │   └── introduction-to-anticoagulants.html
+│   ├── g12-life-sciences.html
+│   └── pharmacology-ii.html
+├── src/
+│   ├── components/
+│   │   ├── modals/
+│   │   │   ├── achievement.html
+│   │   │   ├── answer-streak.html
+│   │   │   ├── boost-reward.html
+│   │   │   ├── coins-reward.html
+│   │   │   ├── daily-quest.html
+│   │   │   ├── heart-reward.html
+│   │   │   ├── hearts-modal.html
+│   │   │   ├── league-results.html
+│   │   │   ├── lesson-complete.html
+│   │   │   ├── quit-confirmation.html
+│   │   │   ├── record.html
+│   │   │   ├── refill-hearts.html
+│   │   │   ├── review-questions.html
+│   │   │   └── streak.html
+│   │   ├── footer.html
+│   │   └── header.html
+│   ├── js/
+│   │   ├── achievement-defs.js
+│   │   ├── course-data.js
+│   │   ├── course-path.js
+│   │   ├── daily-goal.js
+│   │   ├── date-utils.js
+│   │   ├── dyk-map.js
+│   │   ├── glossary-preview.js
+│   │   ├── glossary.js
+│   │   ├── layout.js
+│   │   ├── load-components.js
+│   │   ├── preferences.js
+│   │   ├── profile-utils.js
+│   │   ├── quest-defs.js
+│   │   ├── quest-engine.js
+│   │   ├── quiz-engine.js
+│   │   ├── record-defs.js
+│   │   ├── supabase.js
+│   │   ├── toc-loader.js
+│   │   └── toggle.js
+│   ├── lib/
+│   │   ├── html2canvas.min.js
+│   │   ├── lottie-player.js
+│   │   └── qrcode.min.js
+│   └── styles/
+│       ├── components/
+│       │   └── buttons.css
+│       ├── glossary-preview.css
+│       ├── glossary.css
+│       ├── layout.css
+│       ├── learning-path.css
+│       ├── quiz.css
+│       └── reading.css
+├── .gitignore
+├── 404.html
+├── courses.html
+├── g12-life-sciences.html
+├── index.html
+├── leaderboard.html
+├── login.html
+├── onboarding.html
+├── pharmacology-ii.html
+├── practice-hub.html
+├── quests.html
+├── README.md
+├── registration-completion.html
+├── registration.html
+├── supabase-schema.sql
+└── vercel.json
+
+The tree establishes:
+
+- Where reading pages are located.
+- Where bookmarks, highlights and notes pages are located.
+- Where JavaScript modules and stylesheets belong.
+- Where shared components and libraries are stored.
+- Where course content, lesson data and assets are stored.
+- Which files are existing and which destinations are intended for new files.
+
+The tree is a structural reference, not proof of file contents.
+
+Inspect actual supplied files before relying on their implementation details.
+
+Do not ask the operator to paste the tree again if it is already present in the handoff they provide.
+
+---
+
+# 11. REVIEW AND APPROVAL SEQUENCE
+
+After the operator says **"all files attached"**, proceed in this order.
+
+Do not generate application code during the review phase.
+
+## Step 1 — Confirm received files
+
+Provide a concise receipt summary.
+
+Identify:
+
+- Files received.
+- Files already available from earlier attachments.
+- Genuinely missing files.
+- Whether the four DNA images are present.
+- Whether the DNA quiz JSON is present.
+- Whether `package.json` remains absent.
+- Whether the three saved SQL files are available for inspection.
+- Whether all five reference demos are available.
+- Whether the project tree is present.
+
+Do not treat the tree as proof of file contents.
+
+## Step 2 — Inspect the project and reference material
+
+Inspect the actual files needed to understand:
+
+- Reading pages.
+- Bookmarks.
+- Highlights.
+- Notes.
+- Collection interfaces.
+- Shared components.
+- Existing JavaScript.
+- Existing styles.
+- Reference demonstrations.
+- Route configuration.
+- Database integration.
+
+Produce the functional understanding required by §10.3.12.
+
+Do not invent missing interactions.
+
+## Step 3 — Inspect the saved SQL
+
+If the three saved SQL files are available, inspect them.
+
+Compare the actual contents against §5 and §6.
+
+Report material discrepancies.
+
+Do not rerun SQL.
+
+## Step 4 — Obtain v9 approval
+
+Ask the operator to confirm whether the saved v9 SQL design is formally approved as the basis for application implementation.
+
+Do not ask the operator to repeat the migration execution history.
+
+The operator has already submitted the migration.
+
+If corrections are requested, discuss the exact SQL differences before proceeding.
+
+## Step 5 — Obtain functional approval
+
+Present the functional understanding of bookmarks, highlights, notes, reading pages, collections and sharing.
+
+Ask the operator to approve it or identify corrections.
+
+Only ask questions about genuinely unresolved requirements.
+
+## Step 6 — Obtain implementation authorisation
+
+Ask the operator to confirm that they authorise generation of the seven application files listed in §7.
+
+Do not start generating files before explicit approval.
+
+## Step 7 — Implement
+
+Once all required approvals are received, generate the files in the order in §12.
+
+---
+
+# 12. APPLICATION DELIVERY ORDER
+
+Deliver the seven files in this sequence:
+
+## Group 1
+
+1. `src/js/reading-store.js`
+
+## Group 2
+
+2. `src/js/reading-annotations.js`
+
+## Group 3
+
+3. `src/js/reading-collections.js`
+4. `src/styles/reading-annotations.css`
+5. `vercel.json`
+
+## Group 4
+
+6. `read/g12-life-sciences/dna-location-structure-and-functions.html`
+7. `READING_PATCH_SETUP.md`
+
+Then provide the final ordered implementation and testing checklist.
+
+Every file must be complete from its first line to its last line.
+
+For each file, provide:
+
+- Exact repository destination.
+- Complete file contents.
+- Relevant checklist entry.
+- Necessary integration notes.
+
+Do not substitute snippets for complete files.
+
+If a response exceeds the message limit, stop at a file boundary and state:
+
+`Continue in the next message with: [one-line description of the next complete file]`
+
+Resume from exactly that point.
+
+Do not repeat a previously completed file.
+
+---
+
+# 13. IMPLEMENTATION RULES
+
+These requirements are mandatory.
+
+## 13.1. Complete files
+
+- Every touched file must be re-emitted in full.
+- No `// ... rest stays the same`.
+- No omitted sections.
+- No partial replacement instructions.
+- No truncated code.
+- No invented file contents.
+
+## 13.2. SQL
+
+- Do not execute SQL.
+- Do not rerun the migration.
+- Do not create another migration.
+- Do not modify saved SQL without explicit approval.
+- If corrections are requested, provide the complete corrected file and explain the reason.
+- Never claim SQL has been executed or verified unless it actually has been.
+
+## 13.3. Dependencies and assets
+
+- Do not introduce new CDNs.
+- Use existing local assets wherever available.
+- Do not change the existing Supabase CDN import.
+- Do not invent missing images or quiz data.
+- Use the exact lowercase DNA image filenames in §9.1.
+
+## 13.4. Buttons and styles
+
+Use existing `buttons.css` conventions for buttons.
+
+Do not introduce a competing button system.
+
+Do not unnecessarily restyle unrelated components.
+
+## 13.5. Persistence
+
+- Supabase is canonical for authenticated users.
+- LocalStorage is a UI-state cache only.
+- Never treat annotation content in LocalStorage as the authoritative record.
+- Never claim a save succeeded before the database write returns successfully.
+- Handle loading, success, failure and denied states explicitly.
+- Do not present pending or failed writes as successful saves.
+
+## 13.6. Scope protection
+
+Do not modify:
+
+- Leagues functionality.
+- Quests functionality.
+- `quiz-engine.js`.
+- `layout.js`.
+- The `supabase.js` CDN import.
+- Unrelated files.
+
+Do not refactor unrelated code merely because an improvement is possible.
+
+## 13.7. Testing honesty
+
+Distinguish between:
+
+**Static verification**
+
+Examples:
+
+- Import paths.
+- Function signatures.
+- SQL/client RPC agreement.
+- HTML structure.
+- JSON parsing.
+- Route configuration.
+- CSS selectors.
+- Token handling.
+- Permission assumptions.
+- Annotation ID and offset preservation.
+
+**Runtime verification**
+
+Examples:
+
+- Browser interaction.
+- Supabase writes and reads.
+- RLS behaviour.
+- Shared-view access.
+- Revocation and re-sharing.
+- Collection privacy.
+- Vercel routing after deployment.
+- Responsive behaviour.
+
+Never claim tests were run unless they were actually executed.
+
+Do not claim Vercel routing works in production merely because the configuration was generated.
+
+## 13.8. ZIP files
+
+Do not generate ZIP deliverables.
+
+`src/js/offline-export.js` is already correct and must remain unchanged.
+
+---
+
+# 14. FINAL REPORT REQUIREMENTS
+
+After all seven application files have been delivered, provide a final report containing:
+
+1. **Summary:** Concise account of completed work.
+2. **File manifest:** Every file created, modified or replaced, with its purpose.
+3. **Database migrations:** Three SQL files, intended order, preflight and postcheck workflow. Distinguish migration execution from postcheck verification.
+4. **Functional behaviour:** Explain the implemented reading, bookmark, highlight and note interactions.
+5. **Routing:** Explain `vercel.json` changes and identify runtime verification as the operator's responsibility.
+6. **Annotation persistence:** Explain Supabase persistence, personalised lesson URLs, `?view=`, 128-bit Base64URL tokens and 22-character token length.
+7. **Collection sharing:** Explain username routes, private/public visibility, sharing behaviour and uniform denial handling.
+8. **Visitor permissions:** Explain what public visitors can see and what owner-only controls remain unavailable.
+9. **Export:** Confirm `offline-export.js` remains unchanged.
+10. **Static checks:** List checks actually performed.
+11. **Runtime checks:** List browser, Supabase and Vercel tests the operator still needs to perform.
+12. **Missing assets and data:** Identify the four DNA images, missing DNA quiz JSON and status of `package.json` and the build pipeline.
+13. **Pre-existing security debt:** Document the 19 existing functions with broad EXECUTE grants. Do not imply this workstream fixed them.
+14. **Database drift:** Document the `ensure_rls` event trigger and missing local migration history.
+15. **CDN dependency:** State that `supabase.js` still imports from jsDelivr and that this was intentionally deferred.
+16. **Limitations:** Identify unresolved technical issues, missing dependencies and outstanding operator decisions.
+
+Do not omit known limitations to make the implementation appear more complete.
+
+---
+
+# 15. WORKING RELATIONSHIP AND COMMUNICATION REQUIREMENTS
+
+The previous nine review rounds established these expectations:
+
+- Use direct, professional British English.
+- Do not invent facts.
+- If a version number, file's existence or runtime behaviour is unverified, say so.
+- Do not claim to have tested something that cannot be run in the current environment.
+- Do not hide the CDN dependency.
+- Do not hide the pre-existing 19-function security debt.
+- Do not describe production routing as working before deployment and testing.
+- When the operator corrects something, acknowledge and apply the correction.
+- Do not defend an incorrect earlier answer.
+- Do not repeatedly ask for information already supplied.
+- Do not ask the operator to repeat the live database audit.
+- Do not ask for `.env` values or credentials.
+- Do not ask the operator to create ZIP files.
+- Do not generate files before explicit approval.
+- Do not execute SQL or deploy without explicit authorisation.
+- Keep technical instructions clear and specific.
+- Give one clear next action at a time when guiding the operator.
+
+The operator expects complete, reviewable files and accurate technical reporting, not speculative assurances.
+
+---
+
+# 16. FIRST RESPONSE AFTER RECEIVING THIS HANDOFF
+
+Your first response must be:
+
+> Acknowledged. I have received the Vulanet Reading, Annotation and Collections handoff.
+>
+> I understand that:
+>
+> - The reading workstream has completed nine planning rounds, but the seven application files have not yet been generated.
+> - The three `0012_*` SQL files have been saved locally and submitted through the Supabase SQL Editor.
+> - The preflight returned `PROCEED`, and the main migration returned `Success. No rows returned`.
+> - The complete postcheck was executed twice, but only its final visible result, `13. baseline tables — PASS`, is confirmed in the recorded history. I will not claim every postcheck passed without inspecting the actual results.
+> - Formal approval of the v9 SQL design remains to be confirmed.
+> - The URL contracts, token format, visibility model, RPC architecture and SQL requirements are documented in §5.
+> - The historical live database baseline and known local/live drift are documented in §§3 and 4.
+> - The original functional behaviour of Reading, Bookmarks, Highlights and Notes must be established from the supplied reference demos and actual project files. I will not invent missing interactions.
+> - The project tree is a structural reference and must be retained.
+> - The existing CDN dependency in `src/js/supabase.js` remains out of scope unless explicitly authorised.
+> - No application code should be generated before the files have been received, inspected and reconciled with this handoff.
+>
+> I will accept files in any order and across multiple messages. I will acknowledge each batch and maintain a receipt checklist. I will not review or generate code until you say **"all files attached"**.
+>
+> After that, I will:
+>
+> 1. Confirm the received files and identify anything genuinely missing.
+> 2. Inspect the existing reading, bookmark, highlight and note interfaces and the five reference demos.
+> 3. Establish the complete functional behaviour and present it for your approval.
+> 4. Inspect the saved SQL files, if supplied, and distinguish their actual contents from the design description.
+> 5. Ask you to confirm formal v9 approval and whether any final SQL corrections are required.
+> 6. Ask you to authorise generation of the seven application files.
+>
+> I will not rerun SQL, modify files, push commits, deploy, generate ZIPs or touch unrelated functionality without your explicit instruction.
+>
+> I am standing by for the remaining project files.
+
+---
+
+# END OF HANDOFF
+
+RESPONSE: Acknowledged. I have received the Vulanet Reading, Annotation and Collections handoff.
+
+I understand that:
+
+- The reading workstream has completed nine planning rounds, but the seven application files have not yet been generated.
+- The three `0012_*` SQL files have been saved locally and submitted through the Supabase SQL Editor.
+- The preflight returned `PROCEED`, and the main migration returned `Success. No rows returned`.
+- The complete postcheck was executed twice, but only its final visible result, `13. baseline tables — PASS`, is confirmed in the recorded history. I will not claim every postcheck passed without inspecting the actual results.
+- Formal approval of the v9 SQL design remains to be confirmed.
+- The URL contracts, token format, visibility model, RPC architecture and SQL requirements are documented in §5.
+- The historical live database baseline and known local/live drift are documented in §§3 and 4.
+- The original functional behaviour of Reading, Bookmarks, Highlights and Notes must be established from the supplied reference demos and actual project files. I will not invent missing interactions.
+- The project tree is a structural reference and must be retained.
+- The existing CDN dependency in `src/js/supabase.js` remains out of scope unless explicitly authorised.
+- No application code should be generated before the files have been received, inspected and reconciled with this handoff.
+
+I will accept files in any order and across multiple messages. I will acknowledge each batch and maintain a receipt checklist. I will not review or generate code until you say **"all files attached"**.
+
+After that, I will:
+
+1. Confirm the received files and identify anything genuinely missing.
+2. Inspect the existing reading, bookmark, highlight and note interfaces and the five reference demos.
+3. Establish the complete functional behaviour and present it for your approval.
+4. Inspect the saved SQL files, if supplied, and distinguish their actual contents from the design description.
+5. Ask you to confirm formal v9 approval and whether any final SQL corrections are required.
+6. Ask you to authorise generation of the seven application files.
+
+I will not rerun SQL, modify files, push commits, deploy, generate ZIPs or touch unrelated functionality without your explicit instruction.
+
+I am standing by for the remaining project files.
+
+---
+
+## Receipt — batch 1 (this message)
+
+I have received the following files in this batch. I am not reviewing their contents yet; this is a receipt only.
+
+**Likely reference demos (5):**
+- `highlights_demo.html`
+- `notes_demo.html`
+- `bookmarks_demo.html`
+- `deepseek_html_20261029_7f61fb.html` (DNA reading page)
+- `interactive_notes_share_sheet_dashed.html`
+
+**Root pages:**
+- `leaderboard.html`
+- `quests.html`
+- `login.html`
+- `registration.html`
+- `registration-completion.html`
+- `onboarding.html`
+- `courses.html` (course selection)
+- `index.html`
+- `practice-hub.html`
+- `404.html`
+
+**Reading / learning-path pages:**
+- `pharmacology-ii.html` (learning path)
+- `g12-life-sciences.html` (learning path)
+- `pages/lesson.html`
+- `pages/loading.html`
+
+**Glossary pages:**
+- `glossary/g12-life-sciences.html`
+- `glossary/pharmacology-ii.html`
+
+**Profile / settings pages:**
+- `pages/profile.html` (public profile)
+- `pages/settings.html`
+- `pages/settings/account.html`
+- `pages/settings/courses.html`
+- `pages/settings/notifications.html`
+- `pages/settings/privacy.html`
+- `pages/settings/profile.html`
+
+**Data:**
+- All 11 `data/dyk/*.html` files
+- `data/glossary/g12-life-sciences.json`
+- `data/glossary/pharmacology-ii.json`
+- `data/toc/g12-life-sciences.json`
+- `data/toc/pharmacology-ii.json`
+- `data/lessons/g12-life-sciences/introduction-to-nucleic-acids.json`
+
+**Schema / config:**
+- `supabase-schema.sql`
+- `vercel.json`
+- `README.md`
+
+**Migrations (partial):**
+- `migrations/0001_daily_progress.sql`
+- `migrations/0002_profiles_daily_goal.sql`
+- `migrations/0003_follows.sql`
+
+**Not yet received (non-exhaustive — I will not finalise a missing-files list until you confirm "all files attached"):**
+- The three `0012_*` SQL files (preflight, main, postcheck)
+- Migrations `0004`–`0011`
+- The `src/js/*`, `src/styles/*`, `src/components/*` and `src/lib/*` trees
+- `public/assets/` directory listings for the four DNA lesson images
+- `.gitignore`
+- `bookmarks.html`, `highlights.html`, `notes.html`
+- Root `g12-life-sciences.html`, root `pharmacology-ii.html`
+
+Please continue with the remaining batches. I will not act on this material until you say **"all files attached"**.
+
+Message 2: I'll attach more after this.
+response: Acknowledged — batch 2 received. I am still holding all review until you say **"all files attached"**.
+
+## Receipt — batch 2
+
+**SQL migrations (now complete for `0001`–`0012`):**
+- `0004_quest_suggestion_dismissals.sql`
+- `0005_user_stats_additions.sql`
+- `0006_migrate_timezone_offsets.sql`
+- `0007_high_accuracy_90.sql`
+- `0008_achievement_counters.sql`
+- `0009_glossary_discoveries.sql`
+- `0010_leagues.sql`
+- `0011_leagues_claim_rls.sql`
+- **`0012_reading_collections_preflight.sql`** ✅ now available
+- **`0012_reading_collections.sql`** ✅ now available
+- **`0012_reading_collections_postcheck.sql`** ✅ now available
+
+All three reading-migration files are now available for inspection.
+
+**Components:**
+- `src/components/header.html`
+- `src/components/footer.html`
+
+**All 14 modal components:**
+- `achievement.html`, `answer-streak.html`, `boost-reward.html`, `coins-reward.html`, `daily-quest.html`, `heart-reward.html`, `hearts-modal.html`, `league-results.html`, `lesson-complete.html`, `quit-confirmation.html`, `record.html`, `refill-hearts.html`, `review-questions.html`, `streak.html`
+
+**Reading pages / TOCs:**
+- `read/g12-life-sciences.html` (TOC)
+- `read/pharmacology-ii.html` (TOC)
+- `read/g12-life-sciences/introduction-to-nucleic-acids.html` (existing reading page)
+- `read/pharmacology-ii/introduction-to-anticoagulants.html` (existing reading page)
+
+**JavaScript:**
+- `achievement-defs.js`
+- `course-data.js`
+- `course-path.js`
+- `daily-goal.js`
+- `date-utils.js`
+- `dyk-map.js`
+- `glossary-preview.js`
+- `glossary.js`
+- `layout.js`
+- `load-components.js`
+- `preferences.js`
+- `profile-utils.js`
+- `quest-defs.js`
+- `quest-engine.js`
+
+**Styles / assets:**
+- `fonts.css`
+- Lottie animation JSON: `1f494.json`, `1f525.json`, `1f627.json`, `1f973.json`
+
+---
+
+## Still not received (I will not finalise this list until you confirm "all files attached")
+
+Notable gaps relevant to the reading workstream:
+
+- `src/js/supabase.js` — **critical**; the data layer `reading-store.js` will import from
+- `src/styles/reading.css`, `layout.css`, `learning-path.css`, `quiz.css`, `glossary.css`, `glossary-preview.css`, `components/buttons.css`
+- `src/lib/html2canvas.min.js`, `lottie-player.js`, `qrcode.min.js`
+- `public/assets/icons/phosphor/regular/asterisk.svg`
+- Directory listing of `public/assets/images/` (to confirm the four DNA lesson images under `g12-life-sciences/dna-location-structure-and-functions/`)
+- Directory listing of `public/assets/fonts/`
+- `.gitignore`
+- Root `g12-life-sciences.html`, root `pharmacology-ii.html`
+- `bookmarks.html`, `highlights.html`, `notes.html`
+- Directory listing of `src/styles/` and `src/js/` (so I can confirm the two dead-code files `read/g12-life-sciences/introduction-to-nucleic-acids.html` and `read/pharmacology-ii/introduction-to-anticoagulants.html` match what's on disk — note: you did send these, so they're covered)
+- The four DNA image binaries themselves (I only need to confirm existence, not contents)
+
+I am standing by for the next batch. Say **"all files attached"** when complete, and I'll then proceed to Step 1 (receipt summary + missing-file list) followed by Steps 2–6 per §11.
+
+Message 3: I was planning on sending you a particular prompt for you to generate me the appropriate response for the next stage of this project. But then I tried crafting those files myself, by both creating new ones and updating some existing ones. Can I show you what would've been that prompt now, and then in the next message include the files I created that I think can replace pre-existing ones and be new files altogether? For you to assess if I succeeded well in fulfilling what I sought out in my prompt outline? 
+
+Therefore, here's the original prompt. I'll attach my attempts at fulfilling that after, which have these files in total:
+• practice-hub.html
+• notes.html
+• highlights.html
+• g12-life-sciences.html
+• READING_PATCH_SETUP.md
+• bookmarks.html
+• DNA_ASSETS_TO_ADD.txt
+
+src/styles/reading-collections.css
+src/styles/reading-annotations.css
+
+• /src/js/reading-store.js
+• /src/js/reading-collections.js
+• /src/js/reading-annotations.js
+• /src/js/offline-export.js
+
+• /read/pharmacology-ii.html
+• /read/g12-life-sciences.html
+
+• /read/pharmacology-ii/introduction-to-anticoagulants.html
+•/read/g12-life-sciences/introduction-to-nucleic-acids.html
+• /read/g12-life-sciences/dna-location-structure-and-functions.html
+
+/public/assets/icons/phosphor/regular/asterisk.svg
+
+/migrations/0012_reading_collections.sql
+
+/data/toc/g12-life-sciences.json
+
+
+The MD files are for you to understand. I'LL NOW SAVE IMAGES TO public/assets/images/lessons/g12-life-sciences/dna-location-structure-and-functions/ as:
+photograph-51.png
+nobel-prize-in-physiology-or-medicine-1962.png
+structure-of-dna.png
+dna-components.jpeg
+
+Here's the first prompt:
+
+# Vulanet — Complete Reading, Annotation, Bookmarks, Highlights and Notes Integration
+
+## PROJECT OBJECTIVE
+
+You have access to my existing **Vulanet** project, including the application files and five HTML reference demonstrations.
+
+I want you to implement a fully integrated reading and annotation system within the **actual Vulanet web application**.
+
+This is not a request to create a separate prototype, standalone demonstration or replacement application.
+
+The work involves five major objectives:
+
+1. Integrate **DNA: Location, Structure and Functions** as the second reading lesson under G12 Life Sciences, using its older demonstration as the content reference while preserving the current Vulanet reading-page architecture.
+2. Upgrade the existing reading pages to support the newer highlighting, note-taking, copying and sharing system.
+3. Implement three functional, personalised collections: **Bookmarks, Highlights and Notes**, accessible through the Practice Hub.
+4. Introduce unique, user-specific reading-page identifiers and live, shareable collection URLs, with appropriate ownership and access controls.
+5. Support personalised HTML downloads that preserve article formatting, illustrations, fonts, icons, highlights and notes, even when opened offline.
+
+**Before making changes, thoroughly inspect the project.**
+
+Understand its current architecture, navigation, Supabase authentication, database structure, local assets, CSS conventions, lesson hierarchy and existing functionality.
+
+Reuse working implementations wherever possible.
+
+Do not replace functioning systems unnecessarily, and do not modify unrelated parts of Vulanet.
+
+---
+
+# PART I — PROJECT STRUCTURE AND REFERENCES
+
+## 1. Available reference files
+
+The supplied demonstrations are:
+
+1. `interactive_notes_share_sheet_dashed(1).html` — External Fertilisation interactive annotation demonstration.
+2. Bookmarks Manager demonstration.
+3. Highlights Manager demonstration.
+4. Notes Manager demonstration.
+5. `deepseek_html_20261029_7f61fb.html` — Older DNA reading-page demonstration.
+
+The Vulanet project files are also available for inspection. If `vulanet.zip` is supplied, use it as a reference, but prioritise the current working project directory when differences exist.
+
+Do not assume the demonstrations already follow Vulanet's present architecture.
+
+### Reference priority
+
+**Existing integrated reading pages**
+
+Use the current versions of Introduction to Nucleic Acids and Introduction to Anticoagulants as the main references for page structure, navigation, typography, local assets and overall integration.
+
+**External Fertilisation — Interactive Notes**
+
+Use this newer demonstration as the primary behavioural reference for:
+
+- Text selection and its toolbar.
+- Highlighting and colour selection.
+- Creating, editing and deleting notes.
+- The folder-shaped note editor.
+- Inline Phosphor asterisk markers.
+- Blue dashed underlines.
+- Overlapping annotations.
+- Copying selected text.
+- Native sharing and fallback sharing options.
+
+**Older DNA demonstration**
+
+Use this as the source for the DNA article's educational content, headings, historical material, illustrations and explanations.
+
+Do not carry over outdated external dependencies, broken navigation or obsolete annotation behaviour.
+
+**Bookmarks, Highlights and Notes Manager demonstrations**
+
+Use these as interface and interaction references.
+
+Replace hardcoded examples, placeholder URLs, demonstration usernames, temporary storage and external placeholder images with actual Vulanet functionality.
+
+---
+
+## 2. Relevant existing project resources
+
+Inspect the following files and directories where present:
+
+```text
+practice-hub.html
+g12-life-sciences.html
+
+read/
+  g12-life-sciences.html
+  pharmacology-ii.html
+
+read/g12-life-sciences/
+  introduction-to-nucleic-acids.html
+
+read/pharmacology-ii/
+  introduction-to-anticoagulants.html
+
+glossary/
+  g12-life-sciences.html
+
+data/
+  toc/
+    g12-life-sciences.json
+  glossary/
+    g12-life-sciences.json
+  lessons/
+    g12-life-sciences/
+
+pages/
+  lesson.html
+
+src/
+  js/
+    glossary.js
+    glossary-preview.js
+  styles/
+    reading.css
+
+public/
+  assets/
+    fonts/
+    icons/
+    images/
+```
+
+These are integration references, not an instruction to create duplicate versions.
+
+Inspect the actual files and adapt to the current project structure.
+
+Also inspect the existing Supabase modules, database schema, migrations, authentication flow, build configuration and deployment routing, including `vercel.json` where applicable.
+
+### File placement
+
+The three collection HTML entry points should be located at the **project root**, alongside existing root-level pages such as `practice-hub.html`.
+
+Use:
+
+```text
+/bookmarks.html
+/highlights.html
+/notes.html
+```
+
+Their JavaScript, CSS, images and other supporting resources must remain in their proper shared project directories.
+
+**Do not interpret root-level HTML placement as an instruction to place JavaScript, CSS or other application resources at the root.**
+
+These collection pages aggregate content from multiple courses, so they should not be stored under G12 Life Sciences or Pharmacology.
+
+---
+
+# PART II — DNA READING LESSON INTEGRATION
+
+## 3. Create the integrated DNA reading page
+
+The required reading page is:
+
+```text
+/read/g12-life-sciences/dna-location-structure-and-functions.html
+```
+
+Displayed title:
+
+**DNA: Location, Structure and Functions**
+
+Its hierarchy is:
+
+- Course: G12 Life Sciences.
+- Unit: Unit 1.
+- Chapter: Chapter 1 — DNA: The Code of Life.
+- Lesson: Lesson 2.
+
+Use the older DNA demonstration as the educational-content source.
+
+Transfer the complete article into the existing Vulanet reading-page architecture.
+
+Preserve its original explanations, headings, paragraphs, scientific content, historical discussion, figures and illustrations.
+
+This includes the discussion involving Rosalind Franklin, James Watson, Francis Crick and the other scientists mentioned.
+
+**Do not rewrite, summarise, shorten or paraphrase the educational article.**
+
+Only make the explicitly requested formatting, hyperlink, interface and navigation changes described in this prompt.
+
+### Modernise the implementation
+
+Use the shared layout and functionality already established by Introduction to Nucleic Acids and Introduction to Anticoagulants.
+
+Replace obsolete externally hosted fonts, icons and other dependencies with the project's local resources.
+
+Reuse the shared reading CSS and JavaScript wherever practical.
+
+Do not rebuild an independent annotation system specifically for DNA.
+
+### Local images
+
+The original DNA demonstration contains illustrations and other visual material.
+
+Preserve them.
+
+Store the required images in the appropriate local asset directory, following the existing project conventions.
+
+I may also provide or move the original image files from RsLib.
+
+If an essential image is unavailable, identify the missing asset rather than fabricating an unrelated replacement or silently removing it.
+
+Ensure the final page references local assets through correct paths.
+
+---
+
+## 4. DNA glossary hyperlinks
+
+The old DNA demonstration includes placeholder links that must be corrected.
+
+### Double Helix
+
+The term **Double Helix** is already defined in:
+
+```text
+/data/glossary/g12-life-sciences.json
+```
+
+Both occurrences of *double helix* in the DNA article should remain hyperlinks.
+
+They must open the specific definition in:
+
+```text
+/glossary/g12-life-sciences.html
+```
+
+Use the existing glossary's supported deep-linking mechanism:
+
+```text
+/glossary/g12-life-sciences.html?term=Double%20Helix
+```
+
+The glossary should expand the relevant entry and bring it into view.
+
+Reuse the existing glossary-preview functionality where appropriate, without breaking direct navigation.
+
+### Hereditary
+
+Remove the hyperlink from **hereditary**.
+
+Preserve its surrounding sentence and original bold formatting.
+
+Do not invent a glossary definition for hereditary.
+
+### Other vocabulary
+
+Within the DNA article, **double helix is the only vocabulary term that should remain hyperlinked**.
+
+Nuclear DNA and Extra-nuclear DNA must no longer be hyperlinks.
+
+Do not remove functional navigation links, quiz links or other unrelated application controls.
+
+---
+
+## 5. Exact DNA location-section formatting
+
+The *Location of DNA* section must use the following content and formatting.
+
+### Location of DNA
+
+DNA is mainly found in two locations, leading to it being categorised as either:
+
+### 1. Nuclear DNA
+
+- Present in the **nucleus** (as *nuclear DNA*) – makes up genes on chromosomes.
+
+### 2. Extra-nuclear DNA
+
+- Present in **mitochondria** (as *mitochondrial DNA*).
+- Present in **chloroplasts** (in plant cells as *chloroplast DNA*).
+
+### Formatting requirements
+
+**Nuclear DNA** and **Extra-nuclear DNA** should be bold headings rather than hyperlinks.
+
+The words **nucleus**, **mitochondria** and **chloroplasts** must be bold.
+
+The phrases *nuclear DNA*, *mitochondrial DNA* and *chloroplast DNA* must be italicised.
+
+Do not hyperlink these terms.
+
+Maintain the heading hierarchy, paragraph spacing, list indentation and reading-page typography consistent with the other Vulanet reading pages.
+
+Preserve the article's remaining wording except where I have explicitly provided replacement text.
+
+---
+
+## 6. DNA text colour and typography
+
+Use **Basalt `#4B4B4B`** for applicable reading text that still appears black in the older demonstration.
+
+This must be consistent with the other reading pages.
+
+Inspect both inline styles and inherited CSS.
+
+Do not indiscriminately replace intentional colours used for:
+
+- Blue headers.
+- Hyperlinks.
+- Buttons.
+- Scientific illustrations.
+- Highlight backgrounds.
+- Coloured section elements.
+- Other interface controls.
+
+Use the project's locally available **Atkinson Hyperlegible Next** font.
+
+Maintain the existing reading-page conventions for line-height, font sizes, boldness, italics and paragraph spacing.
+
+---
+
+## 7. Ready to test your knowledge
+
+Near the end of the DNA article, include the existing Vulanet lesson-promotion component.
+
+It should display:
+
+### Ready to test your knowledge?
+
+Put what you've just learned into practice with a lesson:
+
+Use the familiar blue joystick lesson node, with the local icon:
+
+```text
+/assets/icons/material-symbols/outline/joystick.svg
+```
+
+The joystick must lead to:
+
+```text
+/pages/lesson.html?course=g12-life-sciences&lesson=dna-location-structure-and-functions
+```
+
+Do not link it to the Introduction to Nucleic Acids lesson.
+
+### Correct the lesson identifier
+
+The older identifier is:
+
+```text
+dna-location-structure-functions
+```
+
+Rename it consistently to:
+
+```text
+dna-location-structure-and-functions
+```
+
+Update relevant references throughout the actual project, including:
+
+- `g12-life-sciences.html`.
+- Learning-path data.
+- Lesson metadata.
+- Quiz routing.
+- Other references to the old identifier.
+
+The existing quiz loader expects data using a structure equivalent to:
+
+```text
+/data/lessons/{course}/{lesson}.json
+```
+
+I intend to create or provide the DNA quiz content separately.
+
+If the corresponding JSON is not currently present, **do not fabricate questions or redirect users to an unrelated quiz**.
+
+Preserve the correct intended route, identify the missing quiz data and ensure the application handles its absence appropriately.
+
+Do not report the quiz as fully functional until the actual content exists.
+
+---
+
+## 8. Update the G12 Life Sciences table of contents
+
+Update:
+
+```text
+/read/g12-life-sciences.html
+```
+
+Under Unit 1 → Chapter 1 → DNA: The Code of Life, Lesson 2 must link to:
+
+```text
+/read/g12-life-sciences/dna-location-structure-and-functions.html
+```
+
+Also update:
+
+```text
+/data/toc/g12-life-sciences.json
+```
+
+Replace the existing placeholder `#` with the correct lesson path.
+
+Preserve the chapter and unit structure.
+
+### Hamburger navigation
+
+The hamburger menu on reading pages opens the relevant course's table of contents.
+
+Ensure the new DNA lesson appears in the correct place.
+
+Tapping it must open the new reading page.
+
+When viewing the DNA lesson, its position in the unit and chapter must be identifiable, and the active lesson should be indicated consistently with the existing interface.
+
+### Shared metadata
+
+Where possible, reuse the same course, chapter and lesson metadata across:
+
+- The main reading table of contents.
+- Reading-page hamburger navigation.
+- Bookmarks.
+- Highlights.
+- Notes.
+- Learning paths.
+
+Avoid contradictory or duplicated lesson registries.
+
+---
+
+# PART III — SHARED READING AND ANNOTATION SYSTEM
+
+## 9. Upgrade the current reading pages
+
+Implement a shared annotation system for:
+
+1. Introduction to Nucleic Acids.
+2. DNA: Location, Structure and Functions.
+3. Introduction to Anticoagulants.
+
+It should be reusable for future reading lessons without requiring a separate implementation for every new HTML file.
+
+Text selection should present the newer demonstration's actions:
+
+**Highlight | Note | Copy | Share**
+
+Preserve the current reading-page navigation, search, text-size controls, bookmark icon and other working features.
+
+---
+
+## 10. Highlighting
+
+Use the following six colours exactly:
+
+| Name | Hex |
+|---|---|
+| Bee | `#FBBC05` |
+| Boa | `#34A853` |
+| Gecko | `#1CB0F6` |
+| Ladybug | `#EA4335` |
+| Tiger | `#FF6D01` |
+| Beetle | `#AA00FF` |
+
+Preserve the newer demonstration's colour-picker appearance and most-recently-used colour behaviour.
+
+Users should be able to:
+
+- Highlight several different passages in one lesson.
+- Select text across inline formatting.
+- Apply and change colours.
+- Remove existing highlights.
+- Preserve highlights after reloading.
+- Make highlights alongside notes.
+- Work with overlapping annotations without corrupting the article.
+
+Follow the newer demonstration's word-boundary selection behaviour where appropriate.
+
+Avoid breaking article structure or disrupting ordinary text selection.
+
+---
+
+## 11. Notes
+
+Use the newer folder-shaped note interface.
+
+Preserve its appearance and working functionality, including:
+
+- Quoted source passages.
+- Expandable and collapsible quoted text.
+- Note editing.
+- Saving.
+- Deleting.
+- Undo behaviour where provided.
+- Handling overlapping notes.
+- Correct positioning relative to the selected passage.
+
+### Note asterisks
+
+Use the local equivalent of the Phosphor icon:
+
+```html
+<i class="ph ph-asterisk note-asterisk"></i>
+```
+
+The marker should appear in superscript immediately before the first word belonging to the note.
+
+It must take up actual horizontal space.
+
+It must not overlap the text.
+
+Each independent note should have one marker, even if its selected passage contains several words, lines or paragraphs.
+
+Removing a note should also remove its marker.
+
+### Blue dashed underlines
+
+Noted text should have the distinctive blue dashed underline from the newer demonstration.
+
+The underline must remain visible over highlights regardless of which annotation was created first.
+
+For example, highlighting text and then attaching a note must not remove the underline.
+
+Similarly, adding a highlight to already-noted text must not hide the note indicator.
+
+---
+
+## 12. Copying and sharing text
+
+### Copy
+
+Copy the actual selected passage.
+
+Show:
+
+**Copied to clipboard!**
+
+Only show this confirmation after successful copying.
+
+Handle clipboard failures appropriately.
+
+### Share
+
+Use the native browser or device sharing interface whenever available.
+
+When unavailable, provide an explicit sharing-options interface consistent with the newer demo.
+
+Support appropriate available alternatives such as messaging, email and copying a link or excerpt.
+
+Do not silently copy text when the user requested Share.
+
+Do not automatically open another share dialog when the native sharing menu is cancelled.
+
+A cancellation should exit silently.
+
+Distinguish between:
+
+- Sharing selected text.
+- Sharing an ordinary lesson.
+- Sharing a personalised annotated lesson.
+- Sharing an entire collection.
+
+These are different actions and must not all use the same generic sharing data.
+
+---
+
+# PART IV — PERSONALISED READING PAGES AND UNIQUE IDENTIFIERS
+
+## 13. Preserve one original reading document
+
+This requirement is fundamental.
+
+**Annotating a lesson must never physically rewrite its original HTML file.**
+
+For example:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html
+```
+
+must remain the canonical educational document.
+
+Its original content should be identical for all learners.
+
+Individual highlights and notes must be stored separately, linked to the relevant authenticated user and lesson.
+
+When displaying the page, Vulanet should apply that user's saved annotations to the original document.
+
+This allows many learners to annotate the same lesson independently.
+
+Do not generate a separate physical HTML file for every user's annotated version.
+
+---
+
+## 14. Recommended personalised URL architecture
+
+Use the following URL format:
+
+```text
+/read/{course}/{lesson}.html?view={unique-identifier}
+```
+
+For example, the ordinary reading page is:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html
+```
+
+A personalised version might be:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html?view=Gx9nTQ5AJVr8MZ2L0o-3kA
+```
+
+Another learner could have:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html?view=Hf6pLQ8sWvN1bR4yTu9mCA
+```
+
+These are illustrative identifiers, not hardcoded values.
+
+### Why this format?
+
+Retaining the course and lesson name makes the address readable and easy to understand.
+
+The opaque identifier distinguishes different users' personalised views of the same lesson.
+
+Using a query parameter avoids requiring new server routes for every existing `.html` reading page.
+
+It also preserves the existing lesson hierarchy and canonical HTML files.
+
+Do not use the shorter:
+
+```text
+/read/g12-life-sciences/{unique-identifier}
+```
+
+as the primary format.
+
+Do not use:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html/{unique-identifier}
+```
+
+unless the application has deliberately implemented the required server routing.
+
+The preferred implementation for Vulanet's current architecture is:
+
+**`/read/{course}/{lesson}.html?view={unique-identifier}`**
+
+---
+
+## 15. Identifier creation and lifecycle
+
+### Automatic creation
+
+When an authenticated learner opens a reading lesson, Vulanet should automatically identify their personal reading-view record.
+
+If one already exists, reuse it.
+
+If this is their first visit to that lesson, create a new personalised view identifier.
+
+The URL may be updated without a full page reload, provided the correct personalised state has loaded.
+
+Do not generate a different identifier on every refresh.
+
+Do not generate a new identifier whenever a highlight or note is added.
+
+### One identifier per personalised lesson
+
+For a particular learner and lesson, Highlights and Notes must refer to **the same personalised reading view**.
+
+For example, making three highlights and two notes in Introduction to Nucleic Acids must not generate five personalised links or separate links for Notes and Highlights.
+
+All five annotations belong to the same view.
+
+Bookmarks do not require a separate personalised reading identifier.
+
+### Sharing eligibility
+
+The existence of a personalised view identifier does not automatically mean its contents must be publicly accessible.
+
+The identifier may be created on the user's first visit, but sharing permissions must be controlled separately.
+
+For an unannotated lesson, the ordinary canonical lesson URL is the default sharing destination.
+
+Once the learner has saved highlights or notes, the personalised URL can be used for sharing that annotated reading experience, subject to the access rules.
+
+A bookmark alone must not make an annotated share link necessary.
+
+### Stable identifiers
+
+A personalised view identifier should remain unchanged while the learner continues adding, editing or partially deleting annotations from the same lesson.
+
+### Removing every annotation
+
+When the learner deletes **all saved highlights and all saved notes** from a particular lesson:
+
+1. Retire the current personalised sharing identifier.
+2. Return the learner to the ordinary clean lesson URL.
+3. Ensure the old personalised link cannot expose future annotations.
+4. Preserve any independent bookmark record for that lesson.
+
+If the learner later begins another annotation cycle, create a fresh identifier.
+
+If the system automatically creates view records on subsequent authenticated visits, it must still ensure that a retired identifier is never reused.
+
+### Old links
+
+If someone opens an old personalised link after its associated annotations have deliberately been removed, redirect them to the ordinary clean lesson.
+
+For example:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html
+```
+
+However, distinguish intentional deletion from an access restriction.
+
+If a link was revoked, made private or otherwise access-denied, show an appropriate unavailable or access-denied state.
+
+**Never redirect in a way that circumvents a deliberate privacy restriction.**
+
+Retired identifiers must not suddenly begin displaying new annotations when the owner starts annotating the same lesson again.
+
+---
+
+## 16. Unique identifier quality and security
+
+Identifiers must be generated using a cryptographically secure random mechanism.
+
+Use at least 128 bits of randomness, encoded in an appropriate URL-safe format such as Base64URL.
+
+The system should enforce uniqueness through the database.
+
+Do not use predictable sequential numbers, usernames, timestamps alone or client-generated insecure random values.
+
+The identifier space should comfortably support very large numbers of personalised views.
+
+Although the identifiers should be difficult to guess, **unguessability must not replace proper access control**.
+
+Associate each view with a stable owner ID and lesson ID.
+
+Keep the underlying ownership records separate from the human-readable URL.
+
+A user must not be able to modify someone else's annotations merely by changing the `view` parameter.
+
+---
+
+# PART V — SHARED PERSISTENCE AND DATA ARCHITECTURE
+
+## 17. Authentication and annotation persistence
+
+All bookmarks, highlights and notes must belong to the authenticated user.
+
+Use the existing Vulanet Supabase architecture.
+
+The saved data should persist across:
+
+- Page reloads.
+- Browser sessions.
+- Supported devices.
+- Different routes to the same reading lesson.
+
+Do not use hardcoded JavaScript arrays or localStorage as the authoritative source of a user's saved annotations.
+
+LocalStorage may be used for suitable temporary preferences, caching or UI state, but not as a replacement for durable account-level storage.
+
+### Recommended data relationships
+
+Design the model around stable references for:
+
+- Users.
+- Courses.
+- Chapters.
+- Lessons.
+- Personalised reading views.
+- Highlights.
+- Notes.
+- Bookmarks.
+- Collection ordering.
+- Sharing permissions and visibility policies.
+
+Avoid physically duplicating the complete educational article for every user.
+
+### Text anchoring
+
+Store annotations using robust text-range anchoring.
+
+Consider stable content identifiers, text-position information and contextual text selectors, or another reliable strategy compatible with the existing reading architecture.
+
+Avoid depending exclusively on fragile DOM child indices.
+
+Support selections involving nested bold, italic and hyperlink elements, ordinary responsive text wrapping and adjacent annotations.
+
+### Data integrity
+
+Protect user-generated text against unsafe HTML injection.
+
+Ensure that one user's annotations cannot overwrite another user's records.
+
+Handle saving failures and concurrent edits sensibly.
+
+Use appropriate database constraints and security policies.
+
+Do not claim that an annotation has been saved until persistence has succeeded.
+
+---
+
+# PART VI — BOOKMARKS, HIGHLIGHTS AND NOTES COLLECTIONS
+
+## 18. Practice Hub integration
+
+The current Practice Hub already includes Bookmarks, Highlights and Notes cards.
+
+Replace their demonstration or “coming soon” handlers with functional navigation.
+
+Use these root-level entry points:
+
+```text
+/bookmarks.html
+/highlights.html
+/notes.html
+```
+
+The collection managers should inherit Vulanet's general interface conventions while preserving the recognisable design of their respective reference demonstrations.
+
+Use local icons, fonts, images and subject artwork.
+
+Remove hardcoded sample lessons, usernames and placeholder data.
+
+Display real counts and accurate metadata from the authenticated user's records.
+
+---
+
+## 19. Bookmarks Manager
+
+### Saving bookmarks
+
+The bookmark icon in the upper-right corner of a reading lesson should save or remove that lesson from the current learner's Bookmarks.
+
+The icon must accurately reflect its saved state.
+
+Do not allow duplicate bookmark entries for the same learner and lesson.
+
+### Collection contents
+
+Display one row per bookmarked lesson.
+
+Default sorting:
+
+**Most recently bookmarked first.**
+
+Support persistent manual ordering.
+
+The bookmark list should be unique to its owner.
+
+### Three-dot menu
+
+Each bookmarked lesson should provide:
+
+1. Change order.
+2. Remove from Bookmarks.
+3. Go to chapter.
+4. Go to course.
+5. Share.
+6. Download.
+
+### Navigation
+
+Tapping the lesson title should open that exact lesson.
+
+**Go to chapter** should open the relevant course's reading table of contents, expand the corresponding unit and chapter, and reveal the selected lesson.
+
+**Go to course** should open the course's main reading table of contents.
+
+Do not interpret these two actions as identical navigation.
+
+### Add Topics
+
+Replace the demo's sample topic selection interface.
+
+When Add Topics is opened:
+
+1. Display the learner's currently enrolled or active courses.
+2. Allow a course to be selected.
+3. Display its real nested table of contents.
+4. Allow units and chapters to expand and collapse.
+5. Show an Add button beside eligible lessons.
+6. Immediately save the chosen lesson to Bookmarks.
+7. Clearly indicate lessons already bookmarked.
+
+Use the actual course hierarchy rather than maintaining a separate hardcoded set of chapters.
+
+### Sharing bookmarks
+
+If a bookmarked lesson has no highlights or notes, its individual Share action should use the ordinary lesson URL.
+
+If it contains the owner's saved highlights or notes, sharing that lesson may use the existing personalised annotated view.
+
+Bookmarking by itself must not create a separate shareable annotated copy.
+
+---
+
+## 20. Highlights Manager
+
+The Highlights Manager must show **one entry per lesson containing one or more saved highlights**.
+
+For example:
+
+If a learner highlights five passages in a Java Programming lesson, the Highlights Manager must display only one entry for that lesson.
+
+Opening that entry should show all five highlights in their original positions, together with any saved notes belonging to that learner.
+
+### Automatic sorting
+
+By default, sort lessons according to their most recent highlight activity.
+
+When a new highlight is added to an older lesson, update that lesson's highlight activity timestamp and move it to the top of the automatically sorted collection.
+
+Editing an existing highlight should also update the relevant activity timestamp.
+
+### Manual sorting
+
+Support manual ordering.
+
+Keep a clear distinction between automatic chronological ordering and a saved custom order.
+
+New activity must not unexpectedly destroy the learner's manually arranged order.
+
+### Add Highlights
+
+Opening Add Highlights should show the learner's courses.
+
+Selecting a course should display its real expandable table of contents.
+
+Selecting a lesson should open its reading page, where the learner can start highlighting.
+
+Do not create an empty highlight merely because someone selected or opened a lesson.
+
+The lesson should appear in the Highlights Manager only after at least one highlight is successfully saved.
+
+### Three-dot actions
+
+Follow the relevant pattern from the demonstration, including:
+
+- Change order.
+- Remove from Highlights.
+- Go to chapter.
+- Go to course.
+- Share.
+- Download.
+
+Removing a lesson's highlights must not silently remove its bookmarks or notes.
+
+If Remove from Highlights means deleting all highlights belonging to that lesson, clearly explain the consequence and require appropriate confirmation.
+
+---
+
+## 21. Notes Manager
+
+The Notes Manager must also show **one entry per lesson**, regardless of the number of notes saved within that lesson.
+
+If the learner has written ten notes in DNA: Location, Structure and Functions, that lesson must appear only once.
+
+Opening the lesson should show all ten notes, with their original inline markers, dashed underlines and note content.
+
+Existing highlights should also remain visible.
+
+### Automatic sorting
+
+Like Highlights, Notes should default to the most recently added or updated note activity.
+
+Adding or editing a note in an older lesson should update its activity timestamp and move the lesson to the top of the automatic ordering.
+
+Manual ordering must also be supported and preserved separately.
+
+### Add Notes
+
+This workflow is deliberately different from Bookmarks.
+
+When Add Notes is selected:
+
+1. Show all courses the learner is currently taking.
+2. Allow a course to be selected.
+3. Display its actual expandable table of contents.
+4. Let the learner select a lesson.
+5. Open that lesson's real reading page.
+6. Allow the learner to begin creating notes.
+
+**Do not show Add buttons beside lessons in the Notes course browser.**
+
+Opening a lesson does not automatically create a note.
+
+A lesson should appear in the Notes Manager only after one or more notes have successfully been saved.
+
+### Three-dot actions
+
+Provide appropriate options for:
+
+- Changing order.
+- Removing notes from the collection.
+- Navigating to the corresponding chapter.
+- Navigating to the course.
+- Sharing.
+- Downloading.
+
+Deleting one note must preserve other notes and highlights belonging to the lesson.
+
+When the last note is removed, the lesson should disappear from the Notes Manager.
+
+Its bookmark and highlights must remain unaffected.
+
+---
+
+## 22. One underlying personalised lesson
+
+**Bookmarks, Highlights and Notes are different indexes of the same reading material.**
+
+Do not treat them as three separate annotated documents.
+
+For example, a learner might have:
+
+**DNA: Location, Structure and Functions**
+
+- Bookmarked once.
+- Three highlighted passages.
+- Two saved notes.
+
+The lesson may appear in all three managers.
+
+However, opening it from any manager should display **the same personalised reading page**, with all three highlights and both notes visible together.
+
+The owner should not have conflicting versions depending on where they opened the lesson.
+
+Removing a bookmark must not erase annotations.
+
+Deleting a highlight must not erase notes.
+
+Deleting a note must not remove the bookmark.
+
+If all highlights are deleted but some notes remain, the personalised lesson view must remain active.
+
+Only when **both** the highlight count and note count reach zero should its personalised sharing identifier be retired under the lifecycle rules above.
+
+---
+
+# PART VII — USERNAME-BASED COLLECTION URLS
+
+## 23. Collection URL structure
+
+Unlike individual annotated reading lessons, entire collections should use the owner's username in their URL.
+
+The intended public-facing patterns are:
+
+```text
+/bookmarks/{username}
+/highlights/{username}
+/notes/{username}
+```
+
+For example:
+
+```text
+/bookmarks/user123
+/highlights/user123
+/notes/user123
+```
+
+These represent three distinct collections belonging to the same user.
+
+### Important distinction
+
+The actual HTML entry points should remain at the project root:
+
+```text
+/bookmarks.html
+/highlights.html
+/notes.html
+```
+
+The username-based URLs should resolve to these manager interfaces through appropriate application routing.
+
+Inspect the existing Vite/development server and Vercel deployment configuration.
+
+Implement the necessary routing or rewrites so these URLs work directly when opened or refreshed.
+
+Do not merely change the browser address bar to a path that cannot be reloaded.
+
+Do not break the existing `/lesson/...` routing.
+
+If deployment constraints prevent the requested clean URLs, explain the exact limitation and provide an appropriate functioning fallback rather than pretending the routes work.
+
+### Username identity
+
+A username is a readable public identifier, not a security credential.
+
+Resolve usernames to stable internal user IDs.
+
+Do not use mutable usernames as the database's permanent ownership keys.
+
+Design routing to tolerate future username changes through suitable aliases, redirects or equivalent stable identity handling.
+
+---
+
+## 24. Live collection sharing
+
+The large Share control on each collection's header must share that **entire user's collection**.
+
+For example, sharing:
+
+```text
+/highlights/user123
+```
+
+should show the current Highlights collection belonging to `user123`, subject to access permissions.
+
+### Live rather than static
+
+**Shared collections must be live.**
+
+If the owner adds, removes, edits or rearranges items, recipients visiting or refreshing the existing link should see the updated collection.
+
+Do not create fixed snapshots or static JSON exports as the implementation of sharing.
+
+This applies to all three collections.
+
+### Shared collection presentation
+
+The recipient should see:
+
+- The appropriate collection title.
+- The creator's username or supported public identity.
+- The current number of saved lessons.
+- The currently permitted entries.
+- Their course and chapter information.
+- The owner's selected ordering.
+- Functional lesson navigation.
+
+Opening an annotated lesson should show the owner's permitted highlights and notes.
+
+Opening an unannotated bookmarked lesson should show the ordinary lesson.
+
+### Read-only recipients
+
+A recipient must not be able to edit, remove or reorder the owner's data.
+
+If the recipient is authenticated, the application must not confuse their own annotations with the collection owner's annotations.
+
+Any personal actions available to the recipient must apply only to the recipient's own records.
+
+---
+
+# PART VIII — SHARING PERMISSIONS AND FUTURE PRIVACY
+
+## 25. Future collection visibility modes
+
+I intend to support three possible visibility settings in the future:
+
+**Private | Restricted | Public**
+
+The detailed interface is not finalised.
+
+Do not build an elaborate privacy-settings page now.
+
+However, design the database and access-control architecture so these modes can be implemented without restructuring the entire system.
+
+### Private
+
+Only the collection owner may access the private collection.
+
+Other users should not gain access merely because they possess its URL or know the username.
+
+### Restricted
+
+Access may eventually be granted through different permission mechanisms, such as:
+
+- Specific approved Vulanet accounts.
+- Selected friends or followers.
+- Explicitly approved groups of users.
+- Special invitation or link-based access.
+
+These are possible future permission mechanisms, not instructions to implement every one immediately.
+
+Design the system so restricted access can be expanded later.
+
+### Public
+
+Anyone with the permitted collection link can view its contents without editing them.
+
+A future implementation may also allow publicly discoverable collections, but do not assume this is required now.
+
+### Current implementation
+
+For the present version, implement **live, read-only sharing by link**.
+
+However, the architecture must support moving to more restrictive access policies later.
+
+Do not store all user annotations in unrestricted publicly readable database tables.
+
+Do not confuse a readable username with permission to access the user's data.
+
+---
+
+## 26. Personalised lesson sharing permissions
+
+Individual annotated reading pages should follow the same general security principles as collections.
+
+A personalised view URL must identify the intended owner's lesson annotations.
+
+It must not grant edit rights to a recipient.
+
+Future visibility controls should be able to restrict or revoke access without physically modifying the original lesson.
+
+### Access denied versus deleted
+
+These situations must behave differently.
+
+**When every annotation has deliberately been removed:**
+
+Retire the personalised identifier and redirect an old link to the original clean lesson, provided the user is otherwise allowed to read that lesson.
+
+**When access has been restricted or revoked:**
+
+Display an appropriate unavailable or access-denied state.
+
+Do not redirect in a way that exposes protected information or circumvents a deliberate restriction.
+
+### Independent permissions
+
+Collection links and individual annotated lesson links are separate resources.
+
+For example:
+
+```text
+/notes/user123
+```
+
+identifies a collection.
+
+Whereas:
+
+```text
+/read/g12-life-sciences/introduction-to-nucleic-acids.html?view=Gx9nTQ5AJVr8MZ2L0o-3kA
+```
+
+identifies one personalised reading view.
+
+Their identifiers, ownership relationships and permission checks must be correctly distinguished.
+
+A collection should not accidentally expose an annotated lesson that is unavailable to the recipient under the applicable sharing policy.
+
+---
+
+## 27. Security enforcement
+
+Use the project's existing authentication and Supabase infrastructure.
+
+Enforce user ownership and access controls through appropriate database policies and server-side mechanisms.
+
+Do not rely exclusively on hiding edit buttons in the browser.
+
+Do not expose Supabase service-role credentials to the frontend.
+
+Do not make all annotation rows publicly readable simply to support shared links.
+
+Where anonymous shared-link viewing is required, implement controlled, permission-checked retrieval that returns only the permitted collection or annotation data.
+
+Ensure a user cannot modify another user's content by changing:
+
+- A username.
+- A lesson identifier.
+- A view identifier.
+- A client-side owner ID.
+- A collection URL.
+
+Prepare the permission model for future revocation, private collections and restricted audiences.
+
+---
+
+# PART IX — PERSONALISED HTML DOWNLOADS
+
+## 28. Individual lesson downloads
+
+Every manager's lesson-level three-dot menu should support Download.
+
+The downloaded lesson must preserve the owner's personal reading experience at the moment of export.
+
+Include:
+
+- The complete original educational article.
+- Its layout and typography.
+- Scientific illustrations and local images.
+- Required stylesheets.
+- Fonts and icons.
+- Saved highlight colours.
+- Inline note asterisks.
+- Dashed note underlines.
+- Saved note content.
+- Enough local functionality to inspect the saved annotations offline.
+
+### Preferred format
+
+Use a **self-contained HTML document** where practical.
+
+Embed or appropriately bundle the required CSS, JavaScript, imagery and icons.
+
+Use locally available assets rather than relying on external CDNs.
+
+If embedding all assets in one file is impractical, a properly packaged HTML file with supporting local assets is acceptable.
+
+The goal is a faithful offline reading experience.
+
+### Important
+
+Opening the exported file without internet access must not leave broken images, missing icons, invisible fonts or missing notes.
+
+Test exported files with the internet disconnected.
+
+The offline document does not need to perform authenticated live editing or synchronise new changes to Supabase.
+
+Do not include authentication tokens, private application credentials or unrelated personal data inside downloads.
+
+---
+
+## 29. Collection downloads
+
+The Download action at the collection level must export every lesson currently included in the corresponding collection.
+
+For collections containing several lessons, use a ZIP archive.
+
+The ZIP should include:
+
+- An index or navigation HTML page.
+- The relevant reading lessons.
+- The owner's saved annotations.
+- Required images.
+- Required local styles and fonts.
+- Required icons and other supporting assets.
+
+Preserve navigability between the included lessons wherever practical.
+
+### ZIP naming
+
+Include the collection type, owner's username and download date in the filename.
+
+For example:
+
+```text
+vulanet-highlights-user123-2026-10-31.zip
+vulanet-notes-user123-2026-10-31.zip
+vulanet-bookmarks-user123-2026-10-31.zip
+```
+
+These are naming examples.
+
+Use the actual username and export date.
+
+Avoid characters that are unsuitable for filenames.
+
+Do not use the old manager demonstrations' JSON exports as substitutes for readable HTML documents.
+
+### Offline versus live
+
+A downloaded document is a **snapshot of the owner's permitted content at download time**.
+
+A shared online link is a **live view of the owner's permitted current content**.
+
+These two behaviours must remain distinct.
+
+A previously downloaded file does not need to update automatically when the owner subsequently changes annotations.
+
+---
+
+# PART X — DESIGN AND INTERACTION CONSISTENCY
+
+## 30. Use local resources throughout
+
+Use the project's local assets wherever available.
+
+These include:
+
+- Atkinson Hyperlegible Next.
+- Phosphor icons.
+- Material Symbols.
+- Course imagery.
+- Lesson illustrations.
+- Shared interface styles.
+
+Do not introduce external placeholder thumbnails or unnecessary font and icon CDNs.
+
+Use the locally bundled equivalent of a Phosphor icon rather than depending on an external stylesheet at runtime.
+
+Keep the current Vulanet colour conventions and recognisable design language.
+
+---
+
+## 31. Preserve manager designs
+
+The three manager demonstrations are design references, not disposable drafts.
+
+Retain their distinctive visual identity wherever compatible with Vulanet.
+
+Preserve relevant aspects such as:
+
+- The large collection icon.
+- The Share control on the collection icon.
+- The creator's username and item count.
+- The table-based layout.
+- Course or lesson thumbnails.
+- Date-added information.
+- Three-dot menus.
+- Change-order behaviour.
+- Add and Download buttons.
+- Sharing interfaces.
+- Responsive presentation.
+
+Modernise broken behaviour and integrate with real data.
+
+Do not needlessly redesign the entire interface.
+
+---
+
+## 32. Accessibility and responsiveness
+
+Ensure the system works on desktop and mobile.
+
+Support appropriate touch interactions for text selection, annotation controls and popup positioning.
+
+Avoid placing the annotation toolbar off-screen.
+
+Maintain usable keyboard focus, accessible control labels and sensible tab order.
+
+Support long lesson titles and responsive tables.
+
+Use meaningful empty states for collections containing no saved lessons.
+
+Do not populate empty collections with fabricated entries.
+
+Ensure navigation and modal interactions work correctly on small screens.
+
+---
+
+# PART XI — REQUIRED DATA AND INTERACTION RULES
+
+## 33. Prevent duplicates
+
+The same bookmarked lesson must not appear twice for one user.
+
+A lesson with many highlights must appear once in Highlights.
+
+A lesson with many notes must appear once in Notes.
+
+The underlying highlight and note records remain individually identifiable.
+
+Do not merge unrelated saved highlights or notes into one database record simply because they appear under one lesson entry.
+
+---
+
+## 34. Sorting and activity timestamps
+
+Bookmarks default to most recently bookmarked.
+
+Highlights default to the most recently highlighted or updated lesson.
+
+Notes default to the most recently noted or updated lesson.
+
+Maintain separate activity timestamps for the relevant collection types.
+
+A new highlight should not incorrectly change the Notes collection's last-note activity timestamp.
+
+A new note should not incorrectly change the Highlights collection's last-highlight activity timestamp.
+
+Support persistent manual ordering independently.
+
+When automatic sorting is selected, reflect current activity.
+
+When custom sorting is selected, preserve the user's ordering unless they explicitly change it.
+
+---
+
+## 35. Deletion and collection independence
+
+Removing a bookmark deletes its bookmark association, not the entire user's annotated lesson.
+
+Removing highlights should not delete notes.
+
+Removing notes should not delete highlights.
+
+If all highlights are removed, the lesson disappears from Highlights.
+
+If all notes are removed, the lesson disappears from Notes.
+
+If some annotations remain in either category, the personalised reading view remains active.
+
+When no highlights or notes remain, retire the personalised sharing identifier according to the agreed lifecycle.
+
+Use appropriate confirmation for actions that permanently delete annotations.
+
+Do not silently destroy unrelated saved data.
+
+---
+
+## 36. Navigation consistency
+
+All manager entries must resolve to actual course and lesson resources.
+
+### Go to lesson
+
+Opens the precise reading page.
+
+### Go to chapter
+
+Opens the course's reading table of contents with the relevant unit and chapter expanded, revealing the selected lesson.
+
+### Go to course
+
+Opens the course's main reading table of contents.
+
+### Open from a personal collection
+
+Loads the current learner's personalised reading experience.
+
+### Open from another user's shared collection
+
+Loads the shared owner's permitted annotated reading experience in read-only form.
+
+Do not accidentally substitute the current viewer's annotations for the collection owner's annotations.
+
+---
+
+# PART XII — IMPLEMENTATION PROCESS
+
+## 37. Audit the existing application first
+
+Before modifying the project:
+
+1. Inspect its existing directory structure.
+2. Identify reusable reading-page components.
+3. Identify the current bookmarks and annotation-related code, if any.
+4. Inspect authentication and Supabase integration.
+5. Inspect the existing database and migrations.
+6. Inspect the course and lesson registries.
+7. Identify the correct local font, image and icon paths.
+8. Inspect the Practice Hub.
+9. Inspect existing routing and deployment rewrites.
+10. Identify any missing quiz data or required images.
+
+Provide a concise implementation plan based on what actually exists.
+
+Do not invent files or pretend dependencies are available when they are absent.
+
+---
+
+## 38. Recommended implementation sequence
+
+Work in the following order:
+
+### Phase 1 — DNA reading integration
+
+- Create the integrated DNA reading page.
+- Preserve the original article content.
+- Apply the precise requested formatting.
+- Correct glossary hyperlinks.
+- Update text colours.
+- Use local assets.
+- Update the table of contents and hamburger navigation.
+- Update the learning-path identifier.
+- Add the correct joystick destination.
+
+### Phase 2 — Shared reading annotations
+
+- Implement reusable selection controls.
+- Implement the six highlight colours.
+- Implement the folder-shaped note editor.
+- Implement asterisks and dashed underlines.
+- Implement copying and sharing.
+- Integrate these features into the three existing reading lessons.
+
+### Phase 3 — Persistence and personalised views
+
+- Establish the required database structures and migrations.
+- Connect annotations to authenticated users.
+- Implement reliable annotation anchoring.
+- Implement automatic personalised view identifiers.
+- Implement identifier reuse and retirement.
+- Enforce ownership and write permissions.
+
+### Phase 4 — Collection managers
+
+- Implement root-level Bookmarks, Highlights and Notes HTML pages.
+- Connect them to the Practice Hub.
+- Populate them with real user data.
+- Implement accurate counts and sorting.
+- Implement manual ordering.
+- Implement the course/table-of-contents selection workflows.
+- Implement functional per-lesson menus.
+
+### Phase 5 — Sharing
+
+- Implement username-based collection URLs.
+- Implement live collection retrieval.
+- Implement personalised lesson sharing.
+- Support read-only recipients.
+- Implement backend access checks.
+- Prepare the architecture for future Private, Restricted and Public controls.
+
+### Phase 6 — Offline downloads
+
+- Implement individual annotated HTML exports.
+- Implement collection ZIP exports.
+- Preserve local assets and annotations.
+- Add navigable collection indexes.
+- Test offline rendering.
+
+### Phase 7 — Testing and refinements
+
+- Verify navigation and routing.
+- Verify account isolation.
+- Verify all annotation interactions.
+- Verify collection synchronisation.
+- Verify sharing and permission enforcement.
+- Verify downloads.
+- Fix any regressions introduced into existing pages.
+
+---
+
+# PART XIII — TESTING AND ACCEPTANCE CRITERIA
+
+## 39. DNA lesson acceptance tests
+
+Verify that:
+
+- The integrated DNA reading page loads.
+- All original educational content remains present.
+- The correct title appears.
+- The location section matches the supplied formatting.
+- Nuclear DNA and Extra-nuclear DNA are bold rather than hyperlinked.
+- Hereditary is not hyperlinked.
+- Both double helix links open the correct glossary entry.
+- The glossary expands and reveals Double Helix.
+- Basalt `#4B4B4B` is used for applicable reading text.
+- Fonts, icons and images load locally.
+- The lesson is accessible from the course contents.
+- The hamburger menu includes it.
+- The joystick uses the corrected lesson identifier.
+- No unrelated quiz is substituted for missing DNA quiz content.
+
+---
+
+## 40. Annotation acceptance tests
+
+Verify that:
+
+- Text selection works on desktop and mobile.
+- Selections spanning bold and italic text are handled.
+- All six highlight colours work.
+- Highlights persist after refresh.
+- Notes can be created, edited and deleted.
+- Multiple notes can exist in one lesson.
+- Overlapping annotations work.
+- Inline asterisk markers render correctly.
+- Note underlines remain visible over highlights.
+- Copying provides accurate feedback.
+- Sharing works with native and fallback mechanisms.
+- Cancelling a share operation does not trigger unwanted copying.
+- Saving failures are not presented as successes.
+
+---
+
+## 41. Personalised URL acceptance tests
+
+Verify that:
+
+- An authenticated user's first reading visit can establish a personalised identifier.
+- Returning to the same lesson reuses the existing active identifier.
+- Refreshing does not generate another identifier.
+- Adding notes does not generate another identifier.
+- Adding highlights does not generate another identifier.
+- Highlights and Notes reference the same personalised view.
+- Another learner receives a different view identifier.
+- Personalised URLs do not modify the underlying educational HTML.
+- A recipient cannot edit the owner's annotations.
+- Removing only some annotations keeps the active identifier.
+- Removing every highlight and note retires the existing identifier.
+- A deliberately deleted personalised view redirects to the canonical lesson.
+- Restricted or revoked access produces an appropriate unavailable state.
+- A newly created view never reactivates an old retired identifier.
+
+---
+
+## 42. Collection acceptance tests
+
+Verify that:
+
+- The Practice Hub cards open the correct manager pages.
+- Bookmarks are saved and removed correctly.
+- A bookmarked lesson appears only once.
+- Multiple highlights in one lesson produce one Highlights row.
+- Multiple notes in one lesson produce one Notes row.
+- Highlights and Notes update after successful saves.
+- Automatic sorting responds to activity correctly.
+- Custom ordering survives refreshes.
+- Course-selection interfaces use real enrolled courses.
+- Add Topics correctly bookmarks selected lessons.
+- Add Highlights opens the chosen reading lesson.
+- Add Notes opens the chosen reading lesson without automatically creating a note.
+- Go to chapter expands the correct location.
+- Go to course opens the correct course contents.
+- Different users' collections remain separate.
+- All three collections reference the same underlying personalised lesson.
+
+---
+
+## 43. Sharing acceptance tests
+
+Verify that:
+
+- `/bookmarks/{username}` resolves correctly.
+- `/highlights/{username}` resolves correctly.
+- `/notes/{username}` resolves correctly.
+- The links work when opened directly and refreshed.
+- The collection identifies the correct creator.
+- Shared collections are read-only.
+- Updates by the owner appear after the recipient refreshes.
+- The owner's custom ordering is reflected.
+- Annotated lesson links display the correct owner's permitted annotations.
+- Recipients cannot modify the owner's data.
+- Incorrect or unauthorised access does not expose private records.
+- Access restrictions are enforced independently of frontend display controls.
+- Username changes do not silently transfer ownership or expose another account's collection.
+
+---
+
+## 44. Offline download acceptance tests
+
+Verify that:
+
+- A lesson can be downloaded individually.
+- Bookmarks, Highlights and Notes collections can be downloaded.
+- ZIP names include the username and date.
+- Collection ZIPs contain all intended lessons.
+- An index page provides convenient navigation.
+- Saved highlights retain their colours.
+- Note markers and content remain present.
+- Article images are preserved.
+- Icons and fonts are available offline.
+- Exports remain readable without an internet connection.
+- No Supabase authentication tokens or privileged credentials are embedded.
+- Offline exports do not falsely claim live synchronisation.
+
+Actually open representative exports offline rather than assuming they work because the files were generated.
+
+---
+
+# PART XIV — QUALITY AND DELIVERY REQUIREMENTS
+
+## 45. Do not create disconnected demonstrations
+
+The final implementation must use the real Vulanet codebase.
+
+Do not provide an unrelated HTML prototype when the existing project can be modified.
+
+Do not replace real user data with sample entries.
+
+Do not rely on placeholder links.
+
+Do not introduce competing course registries, authentication systems or annotation implementations.
+
+Do not unnecessarily rewrite unrelated application components.
+
+Preserve the original educational content and existing functionality unless explicitly instructed otherwise.
+
+---
+
+## 46. Be accurate about implementation status
+
+If an action has not been implemented, do not describe it as functioning.
+
+If a database migration is required, provide it.
+
+If deployment configuration is needed for username-based collection URLs, identify it.
+
+If images are missing, specify which assets are needed.
+
+If the DNA quiz content is not yet available, identify that dependency without inventing questions.
+
+If a feature cannot be tested in the current environment, distinguish implemented code from successfully tested behaviour.
+
+Do not hide errors behind success notifications.
+
+---
+
+## 47. Final report
+
+After implementation, provide:
+
+1. A concise summary of the completed work.
+2. A list of files created and modified.
+3. Database migrations or policy changes.
+4. Routing and deployment changes.
+5. The annotation and personalised URL architecture used.
+6. The collection-sharing and permissions architecture.
+7. The HTML export strategy.
+8. Tests performed and their actual results.
+9. Missing assets or quiz content.
+10. Any remaining limitations or decisions requiring my input.
+
+Do not stop after providing a plan if you have the necessary files and tools to carry out the implementation.
+
+Where a missing resource blocks only one part of the work, continue with independent tasks and report that dependency.
+
+**The finished result must feel like one cohesive Vulanet reading and learning system, with properly integrated educational pages, persistent annotations, personalised reading views, live user collections, secure sharing and functional offline downloads.**
+
+The original reading material remains shared and unchanged. Each learner's notes and highlights are stored separately. The three collection managers organise that learner's existing lessons rather than creating conflicting copies. Shared online links reflect current permitted content, while downloaded HTML packages preserve an offline copy at the moment of export.
+
+**Preserve the educational content, respect the existing application architecture, implement real functionality and verify the result before reporting completion.**
+RESPONSE: # Assessment of Your Reading / Annotation / Collections Work
+
+Short version: **this is a substantial, largely functional implementation that integrates cleanly with your existing Vulanet stack, but it deviates from the locked architecture in several places — including one category of changes that will actively break against the live database if you don't reconcile them first, one malformed HTML file, and one case-sensitivity bug in the DNA assets.** I'll walk through what worked, what didn't, and what to do about each item.
+
+---
+
+## 1. What succeeded
+
+These are genuinely good — keep them:
+
+- **Educational content preserved in the DNA reading page.** All headings, paragraphs, the Rosalind Franklin / Watson / Crick history, the four figures, the lesson-promotion node — all intact. Nothing rewritten or summarised.
+- **DNA location section** matches the specified formatting. Nuclear DNA / Extra-nuclear DNA are `<h3><strong>` heading-styled, the terms are correctly bold/italic, and nothing is hyperlinked.
+- **Glossary hyperlinks.** Both *double helix* occurrences link to `/glossary/g12-life-sciences.html?term=Double%20Helix` (URL-encoded space, correct). *Hereditary* is left plain.
+- **Local resources.** Atkinson Hyperlegible Next, Phosphor, Material Symbols and course icons are all served from `/assets/...`. No new external CDNs added beyond what the project already had.
+- **Six highlight colours** use the exact spec palette (`bee / boa / gecko / ladybug / tiger / beetle`) and the shared annotation module uses them consistently with the existing `reading.css` legacy classes.
+- **Note mechanics** — folder-shaped editor, quoted source with expand/collapse, asterisk markers before the first word, dashed blue underline via CSS Custom Highlight API. This is the biggest piece of new work and it's functionally complete.
+- **Collection pages at root** — `bookmarks.html`, `highlights.html`, `notes.html` all exist, all reference shared CSS + JS, all use the `data-collection` attribute and build the full UI at runtime. The visual style (large icon, share button overlay, three-dot menus, reorder arrows, `Add` / `Download` / `Sort` pills) tracks the reference demos.
+- **Add Topics / Add Highlights / Add Notes flows.** `bookmarks.html` correctly surfaces real course TOC with `Add` buttons and disable-when-present. Highlights and Notes correctly **do not** show `Add` buttons and instead prompt the user to open a lesson to start annotating — exactly as the prompt specified.
+- **Sorting** — recent-first defaults, custom order preserved separately, `Sort: Recent` / `Sort: Custom` toggle. The activity timestamps are collection-scoped (`updated_at` on `reading_annotations` vs `created_at` on `reading_bookmarks`).
+- **Deletion independence** — `deleteAnnotation` doesn't touch bookmarks; `setBookmark(…, false)` doesn't touch annotations; `clearLessonAnnotations(course, lesson, kind)` scopes its delete to one `kind`.
+- **Offline export** — `offline-export.js` inlines CSS, converts images to data URLs, uses a hand-rolled STORE-only ZIP writer, produces an `index.html` for collections, and correctly excludes the runtime `reading-annotations.js` script tag from the exported article.
+- **Practice Hub wiring** — cards now navigate to `/bookmarks.html`, `/highlights.html`, `/notes.html`.
+- **TOC + learning path IDs** — `data/toc/g12-life-sciences.json` updated to the new slug; root `g12-life-sciences.html` learning path uses the new slug; both `read/*.html` TOCs updated; `introduction-to-*` pages updated to load `reading-annotations.js` with correct `data-course` / `data-lesson` attributes.
+
+Overall: the educational integration, the annotation UI, the collection shells, and the offline export all work as standalone pieces.
+
+---
+
+## 2. 🔴 Critical — will break against the live database
+
+### 2.1 The SQL migration is a completely different design from the approved `0012_*` migration
+
+The handoff (§5, §6) locked the schema. The user's new `0012_reading_collections.sql` is not that schema. Concrete deltas:
+
+| Item | Approved design | Your file |
+|---|---|---|
+| Table DDL | `CREATE TABLE` (fail-loud) | `CREATE TABLE IF NOT EXISTS` (silently skip) |
+| Function DDL | `CREATE FUNCTION` (fail-loud) | `CREATE OR REPLACE FUNCTION` |
+| Transaction | Explicit `BEGIN;` / `COMMIT;` | None |
+| `search_path` | `SET search_path = ''` | `SET search_path = public, pg_temp` |
+| `_random_token()` | `SECURITY DEFINER`, base64URL, 128 bits, `TEXT` (22 chars) | Does not exist |
+| Token column | `TEXT NOT NULL DEFAULT public._random_token()` | `UUID DEFAULT gen_random_uuid()` |
+| Token shape constraint | `CHECK (token ~ '^[A-Za-z0-9_-]{22}$')` | None |
+| `revoked_at` on `reading_annotation_links` | Required | Absent |
+| `reading_collection_links.visibility` | `TEXT NOT NULL CHECK IN ('private','public')` | `visible BOOLEAN NOT NULL DEFAULT true` |
+| Cleanup trigger `_reading_annotation_links_cleanup` | `AFTER DELETE` on `reading_annotations` | Absent (app-side only) |
+| `revoke_annotation_link` RPC | Required | Absent |
+| `reshare_annotation_link` RPC | Required | Absent |
+| `get_collection_by_username(text, text)` RPC | Required | Absent |
+| `share_collection(text)` RPC | `SECURITY INVOKER` | Absent |
+| `get_shared_reading_lesson(p_token)` argument type | `text` (22-char base64URL) | `uuid` |
+| `get_shared_reading_collection(p_token)` argument type | (username) via `get_collection_by_username` | `uuid` (token) |
+| `reading_annotations.kind/color/body` constraint | Enforces highlight has color + empty body; note has no color | Only `color IS NULL OR color IN (...)` — highlights can have `NULL` color, notes can have a color |
+
+**Why this is critical:** the approved `0012_*` migration has already been executed against your live Supabase project (per §6). `CREATE TABLE IF NOT EXISTS` in your new file will silently skip table creation — your live tables still have `visibility TEXT`, `revoked_at`, `token TEXT (22-char)`. Your new file will then `CREATE OR REPLACE FUNCTION public.get_shared_reading_lesson(p_token uuid)` and `public.get_shared_reading_collection(p_token uuid)` — this creates a **second overloaded function** alongside the existing `(text)` version. PostgREST will resolve the call by argument cast, which works *only if* `p_token` is a valid UUID string. Your frontend passes a UUID token, so it will hit the new UUID overload; the old TEXT overload becomes dead code but still exists. Confusing, and the postcheck file (if it exists) will now fail because it expects the old signatures.
+
+More seriously, your frontend queries `select('token,visible')` on `reading_collection_links` — but the live table doesn't have `visible`, it has `visibility`. That query will 400 against your live project.
+
+**Action:** before anything ships, you need to pick one of:
+
+- **(A) Adopt your schema fully** — treat the new `0012_reading_collections.sql` as the *authoritative* migration, add a fail-loud guard block that refuses to run if the old schema objects exist, and **re-apply it to a fresh Supabase project** (not the live one). Then update the frontend accordingly (it already matches your new schema, so this is coherent).
+- **(B) Align the frontend with the approved schema** — drop the query `select('token,visible')` → `select('token,visibility')`, change `token uuid` RPCs to `p_token text`, use `revoked_at` filtering, and query `get_collection_by_username` for username routes. This is the "least work against the live DB" path.
+- **(C) Generate a brand-new `0013_*` migration** that explicitly ALTERs the live schema to match yours (adds `visible` alongside `visibility`? — no, that's worse). Not recommended.
+
+Whichever you choose, decide before deployment — this is the single biggest source of hidden breakage.
+
+### 2.2 Case-sensitive image filenames — DNA page will show broken images on Vercel
+
+Your DNA HTML references two capital-cased filenames:
+
+```html
+/assets/images/lessons/g12-life-sciences/dna-location-structure-and-functions/Nobel-Prize-in-Physiology-or-Medicine-1962.png
+/assets/images/lessons/g12-life-sciences/dna-location-structure-and-functions/Structure-of-DNA.png
+```
+
+But you told me you will save them as:
+```
+nobel-prize-in-physiology-or-medicine-1962.png
+structure-of-dna.png
+```
+
+The spec (§9.1) also mandates lowercase. Vercel is Linux — case-sensitive. **The two capitalised references will 404 on production.**
+
+Your `DNA_ASSETS_TO_ADD.txt` also lists them capitalised. Both files need correcting.
+
+**Fix:** in `dna-location-structure-and-functions.html`, change those two `src` values to all lowercase. Update `DNA_ASSETS_TO_ADD.txt` to reflect lowercase.
+
+### 2.3 Malformed DNA HTML — duplicated `</article></main>`, duplicated `#finderFooter`, duplicated `#selectionToolbar`
+
+The DNA file has a genuine structural defect. Reading top-to-bottom:
+
+```html
+        </article>
+    </main>
+
+    <div class="finder-footer" id="finderFooter">…</div>
+
+    <div class="selection-toolbar" id="selectionToolbar">
+        …buttons…
+        <div class="color-picker" id="colorPicker">…</div>
+        </article>              ← mismatched close here
+    </main>                    ← mismatched close here
+
+    <div class="finder-footer" id="finderFooter">…</div>          ← duplicate ID
+    <div class="selection-toolbar" id="selectionToolbar">…</div>  ← duplicate ID, nested inside first toolbar
+```
+
+Browsers recover silently, but the DOM has:
+- Two elements with `id="finderFooter"`
+- Two elements with `id="selectionToolbar"`, the second nested inside the first
+- A stray `</article></main>` inside the first toolbar
+
+`document.getElementById` will grab the first of each; `querySelectorAll` will find both. It happens to work because the legacy `#selectionToolbar` is hidden via `display:none!important` inline style, but it's a landmine.
+
+**Fix:** remove the second copy. The file should have exactly one `</article></main>`, one finder-footer, and one selection-toolbar. Given the new `reading-annotations.js` replaces the legacy in-page annotation system, you could also remove the legacy `#selectionToolbar` entirely from all three reading pages and delete the orphaned `window.highlightSelection` / `noteSelection` / `copySelection` / `shareSelection` functions in the inline `<script>` block. That's cleaner.
+
+---
+
+## 3. 🟡 Major — deviations from the locked architecture
+
+### 3.1 URL parameter name: `?annotations=` instead of `?view=`
+
+The prompt (§5.1, §14, §15) is unambiguous: the personalised lesson URL parameter must be `view`.
+
+Your implementation (`reading-annotations.js`, `reading-store.js`) uses `annotations`:
+
+```js
+const urlToken=new URL(location.href).searchParams.get('annotations');
+```
+
+```js
+export const annotationLink=(course,lesson,token)=>new URL(lessonURL(course,lesson)+(token?`?annotations=${encodeURIComponent(token)}`:''),location.origin).href;
+```
+
+Functionally fine. Contractually wrong. Rename to `view` in both files and any tests.
+
+### 3.2 Username-based collection URLs not implemented
+
+The prompt (§5.1, §23) requires:
+
+```
+/bookmarks/{username}
+/highlights/{username}
+/notes/{username}
+```
+
+to resolve to the collection manager, with the RPC `get_collection_by_username(text, text)` returning `{status:'ok'|'denied', data:{...}}`. Your implementation instead uses token-based URLs:
+
+```
+/bookmarks.html?share=<uuid>
+```
+
+This means:
+- No Vercel rewrites needed (you avoided that work).
+- But no public "here's my collection" clean link.
+- No `visibility`/private-restricted-public field. Your schema uses `visible boolean`, which cannot express "restricted" later.
+
+You are making a legitimate alternate design choice — token-based sharing is not insecure. But it locks out the "Public / Restricted / Private" upgrade path you explicitly asked for in §25, and the future URL shape you asked for in §23. If you're deliberately rejecting the username URL scheme, please document that explicitly in `READING_PATCH_SETUP.md`. Otherwise, treat this as a defect to fix in v2.
+
+### 3.3 No revocation or denied state
+
+The prompt (§5.5, §15, §26) requires:
+- `revoke_annotation_link(course, lesson)` — retire the token but keep it invalid.
+- `reshare_annotation_link(course, lesson)` — issue a new token.
+- Distinct handling: **deleted → redirect to clean lesson**; **denied/restricted → unavailable state**.
+- `revoked_at` column on `reading_annotation_links`.
+
+Your implementation:
+- Deletes the link row on the last annotation.
+- No revocation concept.
+- No distinction between deleted and denied — both fall through to redirect to clean lesson.
+
+For the current "live, read-only, by link" model, this is defensible — you have no way for a link to become "denied." But it means you cannot later implement revoked links without a schema change. Given the future-privacy requirement (§25, §26), you should at minimum add `revoked_at` now so the field exists; the RPCs can come later.
+
+### 3.4 Tokens are UUIDs, not 22-char base64URL
+
+The prompt (§5.2, §16) explicitly required:
+
+> Tokens must use 128 bits of cryptographic randomness. Base64URL encoding. Exactly 22 characters. PostgreSQL TEXT, not UUID.
+> Generation is server-side through `public._random_token()` using `extensions.gen_random_bytes(16)`.
+
+Your `token uuid not null unique default gen_random_uuid()` uses UUIDv4, which has 122 random bits, is 36 chars, and is dash-separated. It works, but it violates a locked decision.
+
+Functionally: your identifier space (~2^122) is large enough that guessing remains infeasible. Practically: fine. Contractually: wrong. If you keep this, put a one-line note in the setup doc.
+
+### 3.5 Weaker annotation constraints
+
+Approved design (§5.10):
+```
+highlight → color IS NOT NULL AND color IN (…) AND body = ''
+note      → color IS NULL
+```
+
+Your file:
+```sql
+color text check (color is null or color in ('bee','boa','gecko','ladybug','tiger','beetle'))
+```
+
+This allows a highlight with no color (rendering will fall back to nothing), and allows a note to carry a colour. The app doesn't currently create such rows, but the DB won't stop a future bug from doing so.
+
+**Fix:** add the two-branch `CHECK` from the spec.
+
+### 3.6 No cleanup trigger — cleanup is application-side only
+
+The spec required an `AFTER DELETE` trigger on `reading_annotations` that removes the corresponding `reading_annotation_links` row when the last annotation is deleted. Your file does this in JS instead:
+
+```js
+export async function deleteAnnotation(id,course,lesson){
+  …
+  if(!left.length){checked(await supabase.from('reading_annotation_links').delete()…);}
+}
+```
+
+Works in the happy path. Fails if:
+- The tab is closed between the two calls.
+- The annotation delete succeeds and the link delete errors — the link is orphaned, and `get_shared_reading_lesson` will return `NULL` (because no annotations exist), so the URL becomes dead. Recoverable but not self-healing.
+
+**Fix:** add the trigger. It's two lines of SQL and makes cleanup atomic.
+
+### 3.7 `_random_token()` missing entirely
+
+If you follow 3.4's recommendation to keep UUID tokens, this is moot. If you align with the spec, you need:
+
+```sql
+CREATE FUNCTION public._random_token()
+RETURNS text LANGUAGE sql VOLATILE SET search_path = ''
+AS $$
+  SELECT pg_catalog.replace(pg_catalog.replace(
+    pg_catalog.rtrim(pg_catalog.encode(extensions.gen_random_bytes(16),'base64'),'='),'+','-'),'/','_');
+$$;
+```
+
+Plus the `GRANT EXECUTE … TO service_role` and no client role grant.
+
+---
+
+## 4. 🟡 Other issues
+
+### 4.1 Shared collection requires `?share=<uuid>` — no cross-site sharing story
+
+Since the token is embedded in a query string, sharing `/bookmarks.html?share=abc…` works. But the URL leaks the scheme. If you later want `/bookmarks/{username}` to work, you'll need to write that rewrite path plus add `get_collection_by_username`. Currently `vercel.json` is untouched — no `/bookmarks/*` rewrites exist.
+
+### 4.2 `reading-annotations.js` `owner()` throws for guests, so guests can't view shared annotated lessons
+
+The flow:
+
+```js
+try{await owner();owned=true;ownToken=await getAnnotationLink(course,lesson);}catch(e){owned=false;}
+```
+
+Fine. But if a guest arrives on `…?annotations=<token>` where the token belongs to someone else, the flow is:
+
+```js
+if(urlToken&&urlToken!==ownToken){
+  const shared=await sharedLesson(urlToken);
+  …
+  readonly=true; rows=shared.annotations;
+}
+```
+
+`sharedLesson` calls the `get_shared_reading_lesson` RPC. That RPC is granted to `anon`, so guests can view. ✅ This actually works — just noting it because the `owner()` throw could look alarming.
+
+### 4.3 Notes collection doesn't show counts per lesson
+
+The spec allows either the lesson title alone or a count. You show one row per lesson (correct) but no `N notes` annotation. Minor.
+
+### 4.4 Collections don't display "Created by X" byline to visitors
+
+You show `X · N saved lessons` — reasonable, but the reference demo has `Created by User123 · 4 highlights`. If you want to match the reference more closely, add the word "Created by" to the shared view.
+
+### 4.5 `reading-collections.js` uses `#description` from static HTML but `notes.html` reads more like a placeholder
+
+`bookmarks.html` has `Bookmark lessons for quick access.` — good. `notes.html` has `Lessons appear here after you save a note.` — good. `highlights.html` has `Lessons appear here after you save a highlight.` — good. These are fine.
+
+### 4.6 `reading-collections.css` uses `@import url('/assets/fonts/fonts.css')` at the top
+
+`@import` in CSS is render-blocking and should be a `<link>` in the HTML. Since these pages are dynamically built, this is a low-priority note. Not blocking.
+
+### 4.7 `reading-annotations.js` re-registers globals
+
+Each reading page's inline `<script>` defines `window.highlightSelection`, `window.noteSelection`, etc. `reading-annotations.js` doesn't call them (its toolbar has its own handlers), so they're dead code. But `#selectionToolbar` still appears in the HTML (hidden). If you ever accidentally remove `display:none!important` from the inline style, the old and new toolbars would both fire. Clean up by deleting the legacy toolbar HTML and the four `window.*` functions.
+
+### 4.8 `reading-annotations.js` doesn't put a `data-lesson` / `data-course` guard
+
+`lessonFromPath()` returns the course/lesson from the URL path. If `articleContent` isn't present in the DOM (e.g., the DNA HTML malformed close tags moved it into a hidden container), the module bails. Since the DNA malformed `</article></main>` was inside `#selectionToolbar` (which is `display:none`), the `#articleContent` element is still in the correct place earlier in the document — so this actually works. But it's fragile against that HTML bug being fixed later.
+
+### 4.9 `offline-export.js` uses `fetch(url)` for lesson HTML — relies on server returning clean HTML
+
+Works on Vercel with rewrite active. On a local `python -m http.server` it works too. On a dev server with auth-gating it could fail. Not blocking.
+
+### 4.10 DNA page shows "Lesson 2 of 2" for the joystick
+
+That's inferred from the number of lessons you have implemented — which is correct given `introduction-to-nucleic-acids` (1) and `dna-location-structure-and-functions` (2) are the only two currently materialised. It's technically a UI hint, not a source of truth, but you could also derive it from `toc[unit].chapters[i].lessons.length`. Minor.
+
+### 4.11 `reading-store.js` uses `lessonFromPath` but the DNA HTML injects `data-course` and `data-lesson`
+
+The `data-*` attributes are unused. Not a bug — just dead hint code.
+
+### 4.12 `0012_reading_collections.sql` grants
+
+Your file:
+```sql
+grant select,insert,update,delete on public.reading_bookmarks,public.reading_annotations,public.reading_annotation_links,public.reading_collection_links to authenticated;
+```
+
+Approved design (§5.10, §6.3.G): `reading_annotation_links` must be **`SELECT` only** to `authenticated` — writes go through the lifecycle trigger. Your file grants full CRUD, which means a client could directly insert/update/delete a link row, circumventing the (missing) cleanup trigger. Only matters if you keep the current schema; still, tighten it.
+
+### 4.13 Notes don't render dash underlines when highlight absent
+
+If a user only creates a note (no highlight), the CSS Custom Highlight API still applies `::highlight(vr-notes)`. The dashed underline works. ✅
+
+But if a browser doesn't support CSS Custom Highlight, `render()` bails with a toast and **nothing is rendered**. That's the same behaviour as the reference demo, and it's acceptable — but a fallback would help.
+
+### 4.14 `reading-annotations.css` `.vr-note-asterisk` — asterisk is inserted with `img` inside `<i>`
+
+```html
+<i class="ph ph-asterisk note-asterisk vr-note-asterisk">
+    <img src="/assets/icons/phosphor/regular/asterisk.svg" alt="">
+</i>
+```
+
+The `<i>` has class `.ph.ph-asterisk` but no `<i class="ph ph-asterisk"></i>` font stylesheet is loaded on the page. Since the `<img>` is inserted inside, the Phosphor CSS `content: "\fxxx"` on `.ph:before` may still render a duplicate asterisk. Worth checking visually.
+
+---
+
+## 5. 🟢 Minor
+
+- `.btn` styling from `buttons.css` isn't used by the collection managers (they use `.pill`), which is fine — `buttons.css` is for the wider app.
+- `DNA_ASSETS_TO_ADD.txt` lists filenames capitalised; the file name `Nobel-Prize…` is at odds with the spec's lowercase rule. Update it to lowercase.
+- `reading-collections.css` has duplicate `[hidden]{display:none!important}` at the end (also stated in `#viewer[hidden]`). Harmless.
+- `reading-annotations.js` uses top-level `await` — fine for modern browsers, but will fail in older Safari. If that matters, wrap in an async IIFE.
+- `reading-annotations.js` has a `// Bookmark state comes from the authenticated account…` comment that's accurate but should also mention the shared-view restriction.
+- `offline-export.js` uses `STORE` compression (no DEFLATE) — fine functionally, larger files, low priority.
+
+---
+
+## 6. What to do next (prioritised)
+
+### Fix before you deploy:
+
+1. **Fix the two capitalised image filenames in `dna-location-structure-and-functions.html`** and update `DNA_ASSETS_TO_ADD.txt`. (Two-line change. Broken images otherwise.)
+2. **Repair the malformed DNA HTML** — remove the duplicate `</article></main>`, `#finderFooter`, and `#selectionToolbar`. Simplest: delete the entire second finder-footer + second selection-toolbar block and the stray `</article></main>` before them. Or delete all the legacy toolbar/finder markup from all three reading pages and rely solely on `reading-annotations.js`'s `.vr-*` classes.
+3. **Rename `?annotations=` → `?view=`** in `reading-annotations.js` (one line) and `reading-store.js` (`annotationLink` builder). Update URL sync logic. Update any test docs.
+4. **Decide the SQL story (2.1)** — pick (A) adopt-your-schema or (B) align-with-live-schema before the collection pages are used against the live database. If you pick (A), you need a fail-loud guard block and a fresh database; if you pick (B), update the three `select('…,visible')` calls to `visibility`.
+
+### Fix before you call the feature complete:
+
+5. Add `revoked_at` to `reading_annotation_links`, even if you're not building revoke/reshare RPCs yet (forward compatibility).
+6. Add the two-branch `CHECK` on `reading_annotations`.
+7. Tighten `reading_annotation_links` grant to `SELECT`-only for `authenticated`.
+8. Add the `AFTER DELETE` cleanup trigger (or accept the application-side cleanup and document it).
+9. Add `data-*` reference to `<script>` blocks is fine but consider dropping the unused `data-course` / `data-lesson`.
+
+### Consider for v2:
+
+10. Username-based collection URLs + `get_collection_by_username` + `vercel.json` rewrites.
+11. Revoke / reshare RPCs + `{status:'revoked'}` handling on `get_shared_reading_lesson`.
+12. Base64URL 22-char tokens via `_random_token()`.
+13. Full private / restricted / public visibility model.
+
+---
+
+## 7. Direct answer to your question
+
+**"Can you assess if I succeeded well in fulfilling what I sought out in my prompt outline?"**
+
+- On the **application experience** — yes, substantially. Educational integration, annotation UX, collection pages, offline export, and Practice Hub wiring are all solid, and reflect careful reading of the reference demos.
+- On the **architectural contract** — no. The URL parameter, the collection URL scheme, the SQL schema, the token format, and the revocation model all diverge from the locked decisions in the handoff. Some are cosmetic (parameter name); some are load-bearing (SQL schema vs live DB).
+- On **HTML quality** — two real bugs (duplicated block, capitalised filenames).
+- On **documentation integrity** — `READING_PATCH_SETUP.md` is honest about testing scope (good), but doesn't mention any of the deviations above (bad — the operator reading it would not know the SQL doesn't match the approved migration).
+
+I would not deploy this against the live Supabase project until 2.1 is resolved and 2.2 / 2.3 are fixed. Otherwise, this is a strong, coherent implementation that, with the corrections above, is fully capable of becoming the production reading / annotation / collections system.
